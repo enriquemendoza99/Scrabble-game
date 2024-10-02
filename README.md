@@ -6,12 +6,11 @@ It provides a console-based interface for two to four players to play Scrabble.
 Project Description
 
 This Scrabble game implementation includes the following features:
-
-A game board with premium squares (double/triple letter/word scores)
-ScrabbleGame.Player management with tile racks and scoring
-Move validation and scoring
-ScrabbleGame.Tile bag for drawing and exchanging tiles
-ScrabbleGame.ScrabbleGame.Dictionary for word validation
+A game board with premium squares (double/triple letter/word scores).
+ScrabbleGame.Player management with tile racks and scoring.
+Move validation and scoring.
+ScrabbleGame.Tile bag for drawing and exchanging tiles.
+ScrabbleGame.ScrabbleGame.Dictionary for word validation.
 
 How to Play
 
