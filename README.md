@@ -1,4 +1,4 @@
-# Scrabble ScrabbleGame.Game
+# Scrabble Game
 This is a Java implementation of the classic Scrabble board game. 
 It provides a console-based interface for two to four players to play Scrabble.
 ## At the top level:
