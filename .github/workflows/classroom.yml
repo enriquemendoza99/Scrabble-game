@@ -1,6 +1,6 @@
 name: Autograding Tests
 'on':
-- push
+- workflow_dispatch
 - repository_dispatch
 permissions:
   checks: write
@@ -61,6 +61,15 @@ jobs:
           -e \\\\.class -e \\\\.DS_Store) -eq 0"
         timeout: 1
         max-score: 1
+    - name: Java files in src (not necessarily correctly in packages)
+      id: java-files-in-src-not-necessarily-correctly-in-packages
+      uses: classroom-resources/autograding-command-grader@v1
+      with:
+        test-name: Java files in src (not necessarily correctly in packages)
+        setup-command: ''
+        command: test -d src && test $(ls -UR src/* | grep -c .java) -ge 1
+        timeout: 1
+        max-score: 1
     - name: Autograding Reporter
       uses: classroom-resources/autograding-grading-reporter@v1
       env:
@@ -69,5 +78,6 @@ jobs:
         DOC-DIRECTORY-EXISTS-AND-CONTAINS-AT-LEAST-ONE-PDF-FILE_RESULTS: "${{steps.doc-directory-exists-and-contains-at-least-one-pdf-file.outputs.result}}"
         JAVA-FILES-IN-PACKAGES-IN-SRC_RESULTS: "${{steps.java-files-in-packages-in-src.outputs.result}}"
         NO-COMMON-GENERATED-FILES-IN-THE-REPO-IDEA-OUT-IML-CLASS-DS_STORE_RESULTS: "${{steps.no-common-generated-files-in-the-repo-idea-out-iml-class-ds_store.outputs.result}}"
+        JAVA-FILES-IN-SRC-NOT-NECESSARILY-CORRECTLY-IN-PACKAGES_RESULTS: "${{steps.java-files-in-src-not-necessarily-correctly-in-packages.outputs.result}}"
       with:
-        runners: gitignore-exists,readme-md-exists,doc-directory-exists-and-contains-at-least-one-pdf-file,java-files-in-packages-in-src,no-common-generated-files-in-the-repo-idea-out-iml-class-ds_store
+        runners: gitignore-exists,readme-md-exists,doc-directory-exists-and-contains-at-least-one-pdf-file,java-files-in-packages-in-src,no-common-generated-files-in-the-repo-idea-out-iml-class-ds_store,java-files-in-src-not-necessarily-correctly-in-packages
