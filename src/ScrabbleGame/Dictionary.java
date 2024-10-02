@@ -1,3 +1,5 @@
+package ScrabbleGame;
+
 import java.io.*;
 import java.util.*;
 

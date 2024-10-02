@@ -1,3 +1,5 @@
+package ScrabbleGame;
+
 public class Tile {
     private char letter;
     private int value;

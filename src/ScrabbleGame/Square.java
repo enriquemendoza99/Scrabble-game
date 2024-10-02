@@ -1,3 +1,5 @@
+package ScrabbleGame;
+
 public class Square {
     private SquareType type;
     private Tile tile;

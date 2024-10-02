@@ -1,3 +1,5 @@
+package ScrabbleGame;
+
 public enum SquareType {
     NORMAL('.'),
     DOUBLE_LETTER('D'),

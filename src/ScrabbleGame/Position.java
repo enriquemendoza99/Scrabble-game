@@ -1,3 +1,5 @@
+package ScrabbleGame;
+
 import java.util.Objects;
 
 public class Position {

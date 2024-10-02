@@ -1,4 +1,4 @@
-Input Board:
+Input ScrabbleGame.ScrabbleGame.Board:
 3. .. .. .2 .. .. .. 3. .. .. .. .2 .. .. 3.
 .. 2. .. .. .. .3 .. .. .. .3 .. .. .. 2. ..
 .. .. 2. .. .. .. .2 .. .2 .. .. .. 2. .. ..
@@ -16,7 +16,7 @@ Input Board:
 3. .. .. .2 .. .. .. 3. .. .. .. .2 .. .. 3.
 Tray: le*mdoe
 Solution lemoNed has 81 points
-Solution Board:
+Solution ScrabbleGame.ScrabbleGame.Board:
 3. .. .. .2 .. .. .. 3. .. .. .. .2 .. .. 3.
 .. 2. .. .. .. .3 .. .. .. .3 .. .. .. 2. ..
 .. .. 2. .. .. .. .2 ..  l  e  m  o  N  e  d
@@ -33,7 +33,7 @@ Solution Board:
 .. 2. .. .. .. .3 .. .. .. .3 .. .. .. 2. ..
 3. .. .. .2 .. .. .. 3. .. .. .. .2 .. .. 3.
 
-Input Board:
+Input ScrabbleGame.ScrabbleGame.Board:
 3. .. .. 2. .. .. 3.
 .. .3 .. .. .. .3 ..
 .. ..  a  d .2 .. ..
@@ -43,7 +43,7 @@ Input Board:
  r  e  S  i  d .. 3.
 Tray: toloeri
 Solution troolie has 67 points
-Solution Board:
+Solution ScrabbleGame.ScrabbleGame.Board:
 3. .. .. 2. ..  t 3.
 .. .3 .. .. ..  r ..
 .. ..  a  d .2  o ..
@@ -52,7 +52,7 @@ Solution Board:
 ..  m  a  t ..  i ..
  r  e  S  i  d  e 3.
 
-Input Board:
+Input ScrabbleGame.ScrabbleGame.Board:
 4. .. .. .2 .. .. .. 3. .. .. .2 .. .. 3. .. .. .. .2 .. .. 4.
 .. 2. .. .. .3 .. .. .. 2. .. .. .. 2. .. .. .. .3 .. .. 2. ..
 .. .. 2. .. .. .4 .. .. .. 2. .. 2. .. .. .. .4 .. .. 2. .. ..
@@ -76,7 +76,7 @@ Input Board:
  k  e  p  s ..  n .. 3. .. .. .2 .. .. 3. .. .. .. .2 .. .. 4.
 Tray: ntnbtoi
 Solution tinpot has 24 points
-Solution Board:
+Solution ScrabbleGame.ScrabbleGame.Board:
 4. .. .. .2 .. .. .. 3. .. .. .2 .. .. 3. .. .. .. .2 .. .. 4.
 .. 2. .. .. .3 .. .. .. 2. .. .. .. 2. .. .. .. .3 .. .. 2. ..
 .. .. 2. .. .. .4 .. .. .. 2. .. 2. .. .. .. .4 .. .. 2. .. ..
@@ -99,7 +99,7 @@ Solution Board:
 .. 2. ..  o  x  y .. .. 2. .. .. .. 2. .. .. .. .3 .. .. 2. ..
  k  e  p  s ..  n .. 3. .. .. .2 .. .. 3. .. .. .. .2 .. .. 4.
 
-Input Board:
+Input ScrabbleGame.ScrabbleGame.Board:
 3. .. .. .2 .. .. .. 3. .. .. .. .2 .. .. 3.
 .. 2. .. .. .. .3 .. .. .. .3 .. .. .. 2. ..
 .. .. 2. .. .. .. .2 .. .2 .. .. .. 2. .. ..
@@ -117,7 +117,7 @@ Input Board:
 3. .. .. .2 .. .. .. 3. .. .. .. .2 .. .. 3.
 Tray: dgos*ie
 Solution Bodgiest has 83 points
-Solution Board:
+Solution ScrabbleGame.ScrabbleGame.Board:
 3. .. .. .2 .. .. ..  B .. .. .. .2 .. .. 3.
 .. 2. .. .. .. .3 ..  o .. .3 .. .. .. 2. ..
 .. .. 2. .. .. .. .2  d .2 .. .. .. 2. .. ..
