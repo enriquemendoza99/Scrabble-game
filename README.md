@@ -1,9 +1,45 @@
-# Scrabble Project Template
-
-Inside your project you should have the following structure:
+# Scrabble Game
+This is a Java implementation of the classic Scrabble board game. 
+It provides a console-based interface for two to four players to play Scrabble.
 ## At the top level:
 ### README.md
-This file right here. Make sure you edit it to describe your project
+Project Description
+This Scrabble game implementation includes the following features:
+
+    A game board with premium squares (double/triple letter/word scores)
+    Player management with tile racks and scoring
+    Move validation and scoring
+    Tile bag for drawing and exchanging tiles
+    Dictionary for word validation
+
+How to Play
+
+When prompted, enter the number of players (2-4) and their names.
+On your turn, you can:
+
+Play a word: Enter the word, starting row, starting column, and direction (h for horizontal, v for vertical).
+Format: word row column direction
+Example: HELLO 7 7 h
+Pass your turn by entering pass
+Exchange tiles by entering exchange, then specifying which tiles to exchange
+Quit the game by entering quit
+
+
+The game ends when all tiles have been drawn and one player uses their last tile, or when no more plays are possible.
+Final scores will be displayed at the end of the game.
+
+Project Structure
+
+ScrabbleGame.java: Main class to run the game
+Game.java: Manages the game state and rules
+Board.java: Represents the Scrabble board
+Player.java: Manages player information, including rack and score
+Tile.java: Represents a single letter tile
+Square.java: Represents a single square on the board
+Dictionary.java: Handles word validation
+TileBag.java: Manages the pool of tiles
+
+
 ### .gitignore
 This file tells git which files to you should not track with version control
 ### Jar file(s)
