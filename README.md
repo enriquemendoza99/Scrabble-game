@@ -6,11 +6,12 @@ It provides a console-based interface for two to four players to play Scrabble.
 Project Description
 
 This Scrabble game implementation includes the following features:
-A game board with premium squares (double/triple letter/word scores).
-ScrabbleGame.Player management with tile racks and scoring.
-Move validation and scoring.
-ScrabbleGame.Tile bag for drawing and exchanging tiles.
-ScrabbleGame.ScrabbleGame.Dictionary for word validation.
+
+- A game board with premium squares (double/triple letter/word scores).
+- ScrabbleGame.Player management with tile racks and scoring.
+- Move validation and scoring.
+- ScrabbleGame.Tile bag for drawing and exchanging tiles.
+- ScrabbleGame.ScrabbleGame.Dictionary for word validation.
 
 How to Play
 
@@ -32,14 +33,14 @@ Final scores will be displayed at the end of the game.
 
 Project Structure
 
-ScrabbleGame.ScrabbleGame.java: Main class to run the game
-ScrabbleGame.Game.java: Manages the game state and rules
-ScrabbleGame.ScrabbleGame.Board.java: Represents the Scrabble board
-ScrabbleGame.Player.java: Manages player information, including rack and score
-ScrabbleGame.Tile.java: Represents a single letter tile
-ScrabbleGame.Square.java: Represents a single square on the board
-ScrabbleGame.ScrabbleGame.Dictionary.java: Handles word validation
-ScrabbleGame.TileBag.java: Manages the pool of tiles
+- ScrabbleGame.ScrabbleGame.java: Main class to run the game.
+- ScrabbleGame.Game.java: Manages the game state and rules.
+- ScrabbleGame.ScrabbleGame.Board.java: Represents the Scrabble board.
+- ScrabbleGame.Player.java: Manages player information, including rack and score.
+- ScrabbleGame.Tile.java: Represents a single letter tile.
+- ScrabbleGame.Square.java: Represents a single square on the board.
+- ScrabbleGame.ScrabbleGame.Dictionary.java: Handles word validation.
+- ScrabbleGame.TileBag.java: Manages the pool of tiles.
 
 
 ### .gitignore
