@@ -28,7 +28,7 @@ jobs:
       with:
         test-name: README.md exists
         setup-command: ''
-        command: "[ -f README.md]"
+        command: "[ -f README.md ]"
         timeout: 1
         max-score: 1
     - name: doc directory exists and contains at least one pdf file
