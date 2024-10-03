@@ -30,7 +30,7 @@ jobs:
         setup-command: ''
         command: "[ -f README.md ]"
         timeout: 1
-        max-score: 1
+        max-score: 2
     - name: doc directory exists and contains at least one pdf file
       id: doc-directory-exists-and-contains-at-least-one-pdf-file
       uses: classroom-resources/autograding-command-grader@v1
@@ -39,7 +39,7 @@ jobs:
         setup-command: ''
         command: test -d doc && test $(ls -U doc | grep -c .pdf) -ge 1
         timeout: 1
-        max-score: 1
+        max-score: 4
     - name: Java files in packages in src
       id: java-files-in-packages-in-src
       uses: classroom-resources/autograding-command-grader@v1
@@ -49,7 +49,7 @@ jobs:
         command: test -d src && test $(ls -U src | grep -c .java) -eq 0 && test $(ls
           -UR src/* | grep -c .java) -ge 1
         timeout: 1
-        max-score: 1
+        max-score: 8
     - name: No common generated files in the repo (.idea, out, iml, class, .DS_Store)
       id: no-common-generated-files-in-the-repo-idea-out-iml-class-ds_store
       uses: classroom-resources/autograding-command-grader@v1
@@ -60,7 +60,7 @@ jobs:
         command: "[ ! -e .idea ] && [ ! -e out ] && test $(ls -UAR | grep -c -e \\\\.iml
           -e \\\\.class -e \\\\.DS_Store) -eq 0"
         timeout: 1
-        max-score: 1
+        max-score: 16
     - name: Java files in src (not necessarily correctly in packages)
       id: java-files-in-src-not-necessarily-correctly-in-packages
       uses: classroom-resources/autograding-command-grader@v1
@@ -69,7 +69,7 @@ jobs:
         setup-command: ''
         command: test -d src && test $(ls -UR src/* | grep -c .java) -ge 1
         timeout: 1
-        max-score: 1
+        max-score: 32
     - name: Scoring and Validating Jar Present ("scorechecker.jar")
       id: scoring-and-validating-jar-present-scorechecker-jar
       uses: classroom-resources/autograding-command-grader@v1
@@ -77,7 +77,8 @@ jobs:
         test-name: Scoring and Validating Jar Present ("scorechecker.jar")
         setup-command: ''
         command: '[ -f "scorechecker.jar" ]'
-        timeout: 10
+        timeout: 1
+        max-score: 64
     - name: Solver Jar Present ("solver.jar")
       id: solver-jar-present-solver-jar
       uses: classroom-resources/autograding-command-grader@v1
@@ -85,7 +86,8 @@ jobs:
         test-name: Solver Jar Present ("solver.jar")
         setup-command: ''
         command: '[ -f "solver.jar" ]'
-        timeout: 10
+        timeout: 1
+        max-score: 128
     - name: Scrabble Jar Present ("scrabble.jar")
       id: scrabble-jar-present-scrabble-jar
       uses: classroom-resources/autograding-command-grader@v1
@@ -93,7 +95,8 @@ jobs:
         test-name: Scrabble Jar Present ("scrabble.jar")
         setup-command: ''
         command: '[ -f "scrabble.jar" ]'
-        timeout: 10
+        timeout: 1
+        max-score: 256
     - name: Autograding Reporter
       uses: classroom-resources/autograding-grading-reporter@v1
       env:
