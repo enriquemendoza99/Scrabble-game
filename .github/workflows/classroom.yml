@@ -70,6 +70,14 @@ jobs:
         command: test -d src && test $(ls -UR src/* | grep -c .java) -ge 1
         timeout: 1
         max-score: 1
+    - name: Scoring and Validating Jar Present ("scorechecker.jar")
+      id: scoring-and-validating-jar-present-scorechecker-jar
+      uses: classroom-resources/autograding-command-grader@v1
+      with:
+        test-name: Scoring and Validating Jar Present ("scorechecker.jar")
+        setup-command: ''
+        command: '[ -f "scorechecker.jar" ]'
+        timeout: 10
     - name: Autograding Reporter
       uses: classroom-resources/autograding-grading-reporter@v1
       env:
@@ -79,5 +87,6 @@ jobs:
         JAVA-FILES-IN-PACKAGES-IN-SRC_RESULTS: "${{steps.java-files-in-packages-in-src.outputs.result}}"
         NO-COMMON-GENERATED-FILES-IN-THE-REPO-IDEA-OUT-IML-CLASS-DS_STORE_RESULTS: "${{steps.no-common-generated-files-in-the-repo-idea-out-iml-class-ds_store.outputs.result}}"
         JAVA-FILES-IN-SRC-NOT-NECESSARILY-CORRECTLY-IN-PACKAGES_RESULTS: "${{steps.java-files-in-src-not-necessarily-correctly-in-packages.outputs.result}}"
+        SCORING-AND-VALIDATING-JAR-PRESENT-SCORECHECKER-JAR_RESULTS: "${{steps.scoring-and-validating-jar-present-scorechecker-jar.outputs.result}}"
       with:
-        runners: gitignore-exists,readme-md-exists,doc-directory-exists-and-contains-at-least-one-pdf-file,java-files-in-packages-in-src,no-common-generated-files-in-the-repo-idea-out-iml-class-ds_store,java-files-in-src-not-necessarily-correctly-in-packages
+        runners: gitignore-exists,readme-md-exists,doc-directory-exists-and-contains-at-least-one-pdf-file,java-files-in-packages-in-src,no-common-generated-files-in-the-repo-idea-out-iml-class-ds_store,java-files-in-src-not-necessarily-correctly-in-packages,scoring-and-validating-jar-present-scorechecker-jar
