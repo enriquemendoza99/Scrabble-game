@@ -1,11 +1,12 @@
 package ScrabbleGame;
 
-import java.util.*;
+import java.util.ArrayList;
+import java.util.List;
 
-public class Player {
-    private String name;
-    private List<Tile> rack;
-    private int score;
+public abstract class Player {
+    protected String name;
+    protected List<Tile> rack;
+    protected int score;
 
     public Player(String name) {
         this.name = name;
@@ -13,16 +14,17 @@ public class Player {
         this.score = 0;
     }
 
-    public void addTileToRack(Tile tile) {
-        rack.add(tile);
-    }
+    public abstract void playTurn(Board board, TileBag tileBag, Dictionary dictionary);
 
-    public List<Tile> getRack() {
-        return new ArrayList<>(rack);
-    }
-
-    public void removeTilesFromRack(List<Tile> tiles) {
-        rack.removeAll(tiles);
+    public void drawTiles(TileBag tileBag, int count) {
+        for (int i = 0; i < count && rack.size() < 7; i++) {
+            Tile tile = tileBag.drawTile();
+            if (tile != null) {
+                rack.add(tile);
+            } else {
+                break; // No more tiles in the bag
+            }
+        }
     }
 
     public void addToScore(int points) {
@@ -37,24 +39,7 @@ public class Player {
         return name;
     }
 
-    public boolean hasTiles(List<Tile> tilesToCheck) {
-        Map<Character, Integer> rackTileCount = new HashMap<>();
-        for (Tile tile : rack) {
-            rackTileCount.put(tile.getLetter(), rackTileCount.getOrDefault(tile.getLetter(), 0) + 1);
-        }
-
-        for (Tile tile : tilesToCheck) {
-            char letter = tile.getLetter();
-            if (!rackTileCount.containsKey(letter) || rackTileCount.get(letter) == 0) {
-                return false;
-            }
-            rackTileCount.put(letter, rackTileCount.get(letter) - 1);
-        }
-        return true;
-    }
-
-    @Override
-    public String toString() {
-        return name + " (Score: " + score + ")";
+    public List<Tile> getRack() {
+        return new ArrayList<>(rack);
     }
 }

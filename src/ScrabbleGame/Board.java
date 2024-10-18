@@ -1,115 +1,106 @@
 package ScrabbleGame;
-
-import java.util.*;
+import java.util.Arrays;
 
 public class Board {
-    private Square[][] grid;
-    private static final int SIZE = 15;
-    private static final int CENTER = 7;
+    public static final int BOARD_SIZE = 15;
+    private Square[][] squares;
 
     public Board() {
+        squares = new Square[BOARD_SIZE][BOARD_SIZE];
         initializeBoard();
     }
 
     private void initializeBoard() {
-        grid = new Square[SIZE][SIZE];
-        for (int row = 0; row < SIZE; row++) {
-            for (int col = 0; col < SIZE; col++) {
-                grid[row][col] = new Square(getSquareType(row, col));
+        for (int row = 0; row < BOARD_SIZE; row++) {
+            for (int col = 0; col < BOARD_SIZE; col++) {
+                squares[row][col] = new Square(getSquareType(row, col));
             }
         }
     }
 
     private SquareType getSquareType(int row, int col) {
-        if ((row == 0 || row == 14) && (col == 0 || col == 7 || col == 14)) return SquareType.TRIPLE_WORD;
-        if ((row == 7 && col == 0) || (row == 7 && col == 14)) return SquareType.TRIPLE_WORD;
-        if ((row == 1 || row == 13) && (col == 1 || col == 13)) return SquareType.DOUBLE_WORD;
-        if ((row == 2 || row == 12) && (col == 2 || col == 12)) return SquareType.DOUBLE_WORD;
-        if ((row == 3 || row == 11) && (col == 3 || col == 11)) return SquareType.DOUBLE_WORD;
-        if ((row == 4 || row == 10) && (col == 4 || col == 10)) return SquareType.DOUBLE_WORD;
-        if (row == 7 && col == 7) return SquareType.DOUBLE_WORD;
-        if ((row == 0 || row == 14) && (col == 3 || col == 11)) return SquareType.DOUBLE_LETTER;
-        if ((row == 2 || row == 12) && (col == 6 || col == 8)) return SquareType.DOUBLE_LETTER;
-        if ((row == 3 || row == 11) && (col == 0 || col == 7 || col == 14)) return SquareType.DOUBLE_LETTER;
-        if ((row == 6 || row == 8) && (col == 2 || col == 6 || col == 8 || col == 12)) return SquareType.DOUBLE_LETTER;
-        if ((row == 7) && (col == 3 || col == 11)) return SquareType.DOUBLE_LETTER;
+        if (isTripleWordSquare(row, col)) return SquareType.TRIPLE_WORD;
+        if (isDoubleWordSquare(row, col)) return SquareType.DOUBLE_WORD;
+        if (isTripleLetterSquare(row, col)) return SquareType.TRIPLE_LETTER;
+        if (isDoubleLetterSquare(row, col)) return SquareType.DOUBLE_LETTER;
         return SquareType.NORMAL;
     }
 
+    private boolean isTripleWordSquare(int row, int col) {
+        return (row == 0 || row == 7 || row == 14) && (col == 0 || col == 7 || col == 14);
+    }
+
+    private boolean isDoubleWordSquare(int row, int col) {
+        if (row == col || row == BOARD_SIZE - 1 - col) {
+            return row != 0 && row != 7 && row != 14;
+        }
+        return false;
+    }
+
+    private boolean isTripleLetterSquare(int row, int col) {
+        int[][] tripleLetterPositions = {{1, 5}, {1, 9}, {5, 1}, {5, 5}, {5, 9}, {5, 13}, {9, 1}, {9, 5}, {9, 9}, {9, 13}, {13, 5}, {13, 9}};
+        return Arrays.stream(tripleLetterPositions).anyMatch(pos -> pos[0] == row && pos[1] == col);
+    }
+
+    private boolean isDoubleLetterSquare(int row, int col) {
+        int[][] doubleLetterPositions = {{0, 3}, {0, 11}, {2, 6}, {2, 8}, {3, 0}, {3, 7}, {3, 14}, {6, 2}, {6, 6}, {6, 8}, {6, 12}, {7, 3}, {7, 11}, {8, 2}, {8, 6}, {8, 8}, {8, 12}, {11, 0}, {11, 7}, {11, 14}, {12, 6}, {12, 8}, {14, 3}, {14, 11}};
+        return Arrays.stream(doubleLetterPositions).anyMatch(pos -> pos[0] == row && pos[1] == col);
+    }
+
     public boolean placeTile(Tile tile, int row, int col) {
-        if (!isValidPlacement(row, col)) {
-            return false;
+        if (isValidPosition(row, col) && squares[row][col].isEmpty()) {
+            squares[row][col].setTile(tile);
+            return true;
         }
-        grid[row][col].setTile(tile);
-        return true;
+        return false;
     }
 
-    public boolean isValidPlacement(int row, int col) {
-        return row >= 0 && row < SIZE && col >= 0 && col < SIZE && !grid[row][col].isOccupied();
-    }
-
-    public List<String> getWords(List<Position> positions) {
-        List<String> words = new ArrayList<>();
-        String horizontalWord = getWordInDirection(positions, 0, 1);
-        String verticalWord = getWordInDirection(positions, 1, 0);
-        if (horizontalWord.length() > 1) words.add(horizontalWord);
-        if (verticalWord.length() > 1) words.add(verticalWord);
-        return words;
-    }
-
-    private String getWordInDirection(List<Position> positions, int rowDelta, int colDelta) {
-        StringBuilder word = new StringBuilder();
-        Position start = positions.get(0);
-        int row = start.getRow();
-        int col = start.getCol();
-
-        // Move to the start of the word
-        while (row > 0 && col > 0 && grid[row - rowDelta][col - colDelta].isOccupied()) {
-            row -= rowDelta;
-            col -= colDelta;
-        }
-
-        // Build the word
-        while (row < SIZE && col < SIZE && grid[row][col].isOccupied()) {
-            word.append(grid[row][col].getTile().getLetter());
-            row += rowDelta;
-            col += colDelta;
-        }
-
-        return word.toString();
+    public boolean isValidPosition(int row, int col) {
+        return row >= 0 && row < BOARD_SIZE && col >= 0 && col < BOARD_SIZE;
     }
 
     public Square getSquare(int row, int col) {
-        return grid[row][col];
+        if (isValidPosition(row, col)) {
+            return squares[row][col];
+        }
+        return null;
     }
 
-    public boolean isEmpty() {
-        return grid[CENTER][CENTER].getTile() == null;
+    public void removeTile(int row, int col) {
+        if (isValidPosition(row, col)) {
+            squares[row][col].removeTile();
+        }
     }
     public boolean hasAdjacentTile(int row, int col) {
-        int[][] directions = {{-1, 0}, {1, 0}, {0, -1}, {0, 1}};
-        for (int[] dir : directions) {
-            int newRow = row + dir[0];
-            int newCol = col + dir[1];
-            if (newRow >= 0 && newRow < SIZE && newCol >= 0 && newCol < SIZE) {
-                if (grid[newRow][newCol].isOccupied()) {
-                    return true;
-                }
+        int[][] adjacentPositions = {
+                {row - 1, col}, {row + 1, col}, {row, col - 1}, {row, col + 1}
+        };
+
+        for (int[] pos : adjacentPositions) {
+            if (isValidPosition(pos[0], pos[1]) && !getSquare(pos[0], pos[1]).isEmpty()) {
+                return true;
             }
         }
         return false;
     }
+
+    public boolean isEmpty() {
+        for (int row = 0; row < BOARD_SIZE; row++) {
+            for (int col = 0; col < BOARD_SIZE; col++) {
+                if (!squares[row][col].isEmpty()) {
+                    return false;
+                }
+            }
+        }
+        return true;
+    }
+
     @Override
     public String toString() {
         StringBuilder sb = new StringBuilder();
-        for (int row = 0; row < SIZE; row++) {
-            for (int col = 0; col < SIZE; col++) {
-                if (grid[row][col].isOccupied()) {
-                    sb.append(grid[row][col].getTile().getLetter());
-                } else {
-                    sb.append(grid[row][col].getType().getSymbol());
-                }
-                sb.append(" ");
+        for (int row = 0; row < BOARD_SIZE; row++) {
+            for (int col = 0; col < BOARD_SIZE; col++) {
+                sb.append(squares[row][col]);
             }
             sb.append("\n");
         }

@@ -1,5 +1,4 @@
 package ScrabbleGame;
-
 public class Square {
     private SquareType type;
     private Tile tile;
@@ -9,41 +8,42 @@ public class Square {
         this.tile = null;
     }
 
-    public boolean isOccupied() {
-        return tile != null;
-    }
-
-    public void setTile(Tile tile) {
-        this.tile = tile;
+    public SquareType getType() {
+        return type;
     }
 
     public Tile getTile() {
         return tile;
     }
 
-    public SquareType getType() {
-        return type;
+    public void setTile(Tile tile) {
+        this.tile = tile;
     }
 
-    public int getLetterMultiplier() {
-        switch (type) {
-            case DOUBLE_LETTER:
-                return 2;
-            case TRIPLE_LETTER:
-                return 3;
-            default:
-                return 1;
-        }
+    public void removeTile() {
+        this.tile = null;
     }
 
-    public int getWordMultiplier() {
-        switch (type) {
-            case DOUBLE_WORD:
-                return 2;
-            case TRIPLE_WORD:
-                return 3;
-            default:
-                return 1;
+    public boolean isEmpty() {
+        return tile == null;
+    }
+
+    @Override
+    public String toString() {
+        if (tile != null) {
+            return "[" + tile.getLetter() + "]";
+        } else {
+            switch (type) {
+                case TRIPLE_WORD: return "[TW]";
+                case DOUBLE_WORD: return "[DW]";
+                case TRIPLE_LETTER: return "[TL]";
+                case DOUBLE_LETTER: return "[DL]";
+                default: return "[ ]";
+            }
         }
     }
+}
+
+enum SquareType {
+    NORMAL, DOUBLE_LETTER, TRIPLE_LETTER, DOUBLE_WORD, TRIPLE_WORD
 }
