@@ -1,6 +1,6 @@
 # Scrabble testing files
 
-This directory contains some dictionaries, boards, and tiles distributions that you may find useful, as well as some example input/output files for the scorechecker and solver programs.
+This directory contains some dictionaries, boards, and tiles distributions that you may find useful, as well as some example input/output files for the scorechecker and Solver programs.
 
 ## Word lists
 
