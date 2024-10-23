@@ -1,244 +1,466 @@
 package ScrabbleGame;
 
-import javafx.application.Application;
-import javafx.geometry.Insets;
-import javafx.scene.Scene;
-import javafx.scene.control.Button;
-import javafx.scene.control.Label;
-import javafx.scene.layout.BorderPane;
-import javafx.scene.layout.GridPane;
-import javafx.scene.layout.HBox;
-import javafx.scene.layout.VBox;
-import javafx.stage.Stage;
+import java.util.*;
+import java.io.IOException;
 
-import java.util.List;
-
-public class ScrabbleGame extends Application {
+public class ScrabbleGame {
     private Board board;
-    private HumanPlayer humanPlayer;
+    private Player humanPlayer;
     private ComputerPlayer computerPlayer;
     private TileBag tileBag;
     private Dictionary dictionary;
     private Player currentPlayer;
+    private boolean gameOver;
+    private List<String> gameLog;
+    private int consecutivePasses;
+    private static final int MAX_PASSES = 6;
+    private List<GameStateListener> gameStateListeners;
 
-    private GridPane boardGrid;
-    private HBox humanRack;
-    private Label messageLabel;
-    private Label scoreLabel;
-    private Button playButton;
-    private Button passButton;
-
-    @Override
-    public void start(Stage primaryStage) {
-        initializeGame();
-
-        BorderPane root = new BorderPane();
-        root.setPadding(new Insets(10));
-
-        // Create board grid
-        boardGrid = createBoardGrid();
-        root.setCenter(boardGrid);
-
-        // Create player rack
-        humanRack = new HBox(10);
-        updateRackDisplay();
-
-        // Create controls
-        playButton = new Button("Play Word");
-        playButton.setOnAction(e -> playTurn());
-        passButton = new Button("Pass");
-        passButton.setOnAction(e -> passTurn());
-
-        HBox controls = new HBox(10, playButton, passButton);
-
-        // Create message and score labels
-        messageLabel = new Label("Human player's turn");
-        scoreLabel = new Label("Human: 0 | Computer: 0");
-
-        VBox bottomPane = new VBox(10, humanRack, controls, messageLabel, scoreLabel);
-        root.setBottom(bottomPane);
-
-        Scene scene = new Scene(root, 800, 700);
-        primaryStage.setTitle("Scrabble Game");
-        primaryStage.setScene(scene);
-        primaryStage.show();
+    public interface GameStateListener {
+        void onGameStateChanged();
+        void onMoveCompleted(Player player, Move move, int score);
+        void onGameOver();
     }
 
-    private void initializeGame() {
+    public ScrabbleGame(String dictionaryFile) {
+        try {
+            initialize(dictionaryFile);
+        } catch (IOException e) {
+            throw new RuntimeException("Failed to initialize game: " + e.getMessage());
+        }
+    }
+
+    private void initialize(String dictionaryFile) throws IOException {
+        // Initialize components
+        dictionary = new Dictionary();
+        dictionary.loadDictionary(dictionaryFile);
+
         board = new Board();
         tileBag = new TileBag();
-        dictionary = new Dictionary("path/to/dictionary/file.txt");
+        gameLog = new ArrayList<>();
+        gameStateListeners = new ArrayList<>();
+
         humanPlayer = new HumanPlayer("Human");
         computerPlayer = new ComputerPlayer("Computer", dictionary);
 
-        humanPlayer.drawTiles(tileBag, 7);
-        computerPlayer.drawTiles(tileBag, 7);
+        // Initial tile draw
+        humanPlayer.drawTiles(tileBag);
+        computerPlayer.drawTiles(tileBag);
 
-        currentPlayer = humanPlayer;
+        // Determine who goes first
+        determineFirstPlayer();
+
+        gameOver = false;
+        consecutivePasses = 0;
     }
 
-    private GridPane createBoardGrid() {
-        GridPane grid = new GridPane();
-        grid.setHgap(1);
-        grid.setVgap(1);
+    public void addGameStateListener(GameStateListener listener) {
+        gameStateListeners.add(listener);
+    }
 
-        for (int row = 0; row < Board.BOARD_SIZE; row++) {
-            for (int col = 0; col < Board.BOARD_SIZE; col++) {
-                Button square = createSquareButton(row, col);
-                grid.add(square, col, row);
+    private void notifyGameStateChanged() {
+        for (GameStateListener listener : gameStateListeners) {
+            listener.onGameStateChanged();
+        }
+    }
+
+    private void notifyMoveCompleted(Player player, Move move, int score) {
+        for (GameStateListener listener : gameStateListeners) {
+            listener.onMoveCompleted(player, move, score);
+        }
+    }
+
+    private void notifyGameOver() {
+        for (GameStateListener listener : gameStateListeners) {
+            listener.onGameOver();
+        }
+    }
+
+    private void determineFirstPlayer() {
+        // Find the player with the letter closest to 'A'
+        char humanBest = 'Z';
+        char computerBest = 'Z';
+
+        for (Tile tile : humanPlayer.getRack().getTiles()) {
+            if (tile.getLetter() < humanBest && !tile.isBlank()) {
+                humanBest = tile.getLetter();
             }
         }
 
-        return grid;
+        for (Tile tile : computerPlayer.getRack().getTiles()) {
+            if (tile.getLetter() < computerBest && !tile.isBlank()) {
+                computerBest = tile.getLetter();
+            }
+        }
+
+        currentPlayer = (humanBest <= computerBest) ? humanPlayer : computerPlayer;
     }
 
-    private Button createSquareButton(int row, int col) {
-        Button square = new Button();
-        square.setPrefSize(40, 40);
-        square.setStyle("-fx-background-color: white; -fx-border-color: black;");
+    public boolean makeMove(Move move) {
+        if (gameOver || !isValidMove(move)) {
+            return false;
+        }
 
-        Square boardSquare = board.getSquare(row, col);
-        if (boardSquare.getTile() != null) {
-            square.setText(String.valueOf(boardSquare.getTile().getLetter()));
+        // Calculate score before applying move
+        int moveScore = calculateScore(move);
+        move.setScore(moveScore);
+
+        // Apply the move
+        board.placeTiles(move);
+        currentPlayer.updateScore(moveScore);
+
+        // Log the move
+        String moveLog = String.format("%s played %s for %d points",
+                currentPlayer.getName(),
+                constructWordString(move),
+                moveScore);
+        gameLog.add(moveLog);
+
+        // Draw new tiles
+        currentPlayer.drawTiles(tileBag);
+
+        // Reset consecutive passes since a move was made
+        consecutivePasses = 0;
+
+        notifyMoveCompleted(currentPlayer, move, moveScore);
+
+        // Check if game is over
+        if (checkGameOver()) {
+            handleGameOver();
         } else {
-            switch (boardSquare.getType()) {
-                case TRIPLE_WORD:
-                    square.setStyle("-fx-background-color: red;");
+            switchPlayer();
+        }
+
+        notifyGameStateChanged();
+        return true;
+    }
+
+    public boolean passTurn() {
+        if (gameOver) {
+            return false;
+        }
+
+        consecutivePasses++;
+        gameLog.add(currentPlayer.getName() + " passed their turn");
+
+        if (consecutivePasses >= MAX_PASSES) {
+            handleGameOver();
+        } else {
+            switchPlayer();
+        }
+
+        notifyGameStateChanged();
+        return true;
+    }
+
+    public boolean exchangeTiles(List<Tile> tilesToExchange) {
+        if (gameOver || tileBag.getRemainingTiles() < 7) {
+            return false;
+        }
+
+        List<Tile> newTiles = currentPlayer.exchangeTiles(tilesToExchange, tileBag);
+        if (newTiles != null) {
+            gameLog.add(String.format("%s exchanged %d tiles",
+                    currentPlayer.getName(),
+                    tilesToExchange.size()));
+
+            consecutivePasses = 0;
+            switchPlayer();
+            notifyGameStateChanged();
+            return true;
+        }
+
+        return false;
+    }
+
+    public Move getComputerMove() {
+        if (currentPlayer == computerPlayer && !gameOver) {
+            return computerPlayer.makeMove(board);
+        }
+        return null;
+    }
+
+    private boolean isValidMove(Move move) {
+        if (move == null || move.getTiles().isEmpty()) {
+            return false;
+        }
+
+        // Validate tile ownership
+        if (!hasRequiredTiles(currentPlayer, move)) {
+            return false;
+        }
+
+        // Check if tiles are in a straight line
+        if (!move.isValid()) {
+            return false;
+        }
+
+        // First move must use center square
+        if (board.isFirstMove()) {
+            boolean usesCenterSquare = false;
+            for (Position pos : move.getPositions()) {
+                if (pos.getRow() == 7 && pos.getCol() == 7) {
+                    usesCenterSquare = true;
                     break;
-                case DOUBLE_WORD:
-                    square.setStyle("-fx-background-color: pink;");
-                    break;
-                case TRIPLE_LETTER:
-                    square.setStyle("-fx-background-color: darkblue;");
-                    break;
-                case DOUBLE_LETTER:
-                    square.setStyle("-fx-background-color: lightblue;");
-                    break;
+                }
+            }
+            if (!usesCenterSquare) {
+                return false;
             }
         }
 
-        square.setOnAction(e -> handleSquareClick(row, col));
-        return square;
-    }
-
-    private void handleSquareClick(int row, int col) {
-        if (currentPlayer == humanPlayer) {
-            humanPlayer.selectPosition(row, col);
-            updateBoardDisplay();
+        // Validate all words formed
+        List<String> wordsFormed = findWordsFormed(move);
+        for (String word : wordsFormed) {
+            if (!dictionary.isValidWord(word)) {
+                return false;
+            }
         }
-    }
 
-    private void updateRackDisplay() {
-        humanRack.getChildren().clear();
-        for (Tile tile : humanPlayer.getRack()) {
-            Button tileButton = new Button(String.valueOf(tile.getLetter()));
-            tileButton.setPrefSize(30, 30);
-            tileButton.setOnAction(e -> handleTileClick(tile));
-            humanRack.getChildren().add(tileButton);
+        // Check connection to existing tiles (except first move)
+        if (!board.isFirstMove() && !connectsToExistingTiles(move)) {
+            return false;
         }
+
+        return true;
     }
 
-    private void handleTileClick(Tile tile) {
-        if (currentPlayer == humanPlayer) {
-            humanPlayer.selectTile(tile);
-            updateRackDisplay();
-        }
-    }
+    private boolean hasRequiredTiles(Player player, Move move) {
+        Map<Character, Integer> rackTiles = new HashMap<>();
+        int blanks = 0;
 
-    private void playTurn() {
-        if (currentPlayer == humanPlayer) {
-            if (humanPlayer.playWord(board, dictionary)) {
-                updateBoardDisplay();
-                updateScores();
-                replenishTiles();
-                switchToComputerTurn();
+        // Count tiles in rack
+        for (Tile tile : player.getRack().getTiles()) {
+            if (tile.isBlank()) {
+                blanks++;
             } else {
-                messageLabel.setText("Invalid word. Try again.");
+                rackTiles.merge(tile.getLetter(), 1, Integer::sum);
             }
         }
-    }
 
-    private void passTurn() {
-        if (currentPlayer == humanPlayer) {
-            switchToComputerTurn();
-        }
-    }
-
-    private void switchToComputerTurn() {
-        currentPlayer = computerPlayer;
-        messageLabel.setText("Computer player's turn");
-        playButton.setDisable(true);
-        passButton.setDisable(true);
-
-        // Use a separate thread for computer's turn to keep UI responsive
-        new Thread(() -> {
-            computerPlayer.playTurn(board, tileBag, dictionary);
-            javafx.application.Platform.runLater(() -> {
-                updateBoardDisplay();
-                updateScores();
-                replenishTiles();
-                switchToHumanTurn();
-            });
-        }).start();
-    }
-
-    private void switchToHumanTurn() {
-        currentPlayer = humanPlayer;
-        messageLabel.setText("Human player's turn");
-        playButton.setDisable(false);
-        passButton.setDisable(false);
-        updateRackDisplay();
-    }
-
-    private void updateBoardDisplay() {
-        for (int row = 0; row < Board.BOARD_SIZE; row++) {
-            for (int col = 0; col < Board.BOARD_SIZE; col++) {
-                Button square = (Button) boardGrid.getChildren().get(row * Board.BOARD_SIZE + col);
-                Tile tile = board.getSquare(row, col).getTile();
-                if (tile != null) {
-                    square.setText(String.valueOf(tile.getLetter()));
-                    square.setStyle("-fx-background-color: yellow;");
+        // Check if player has all required tiles
+        for (Tile tile : move.getTiles()) {
+            if (tile.isBlank()) {
+                if (blanks > 0) {
+                    blanks--;
+                } else {
+                    return false;
+                }
+            } else {
+                int count = rackTiles.getOrDefault(tile.getLetter(), 0);
+                if (count > 0) {
+                    rackTiles.put(tile.getLetter(), count - 1);
+                } else {
+                    return false;
                 }
             }
         }
+
+        return true;
     }
 
-    private void updateScores() {
-        scoreLabel.setText("Human: " + humanPlayer.getScore() + " | Computer: " + computerPlayer.getScore());
-    }
+    private List<String> findWordsFormed(Move move) {
+        List<String> words = new ArrayList<>();
 
-    private void replenishTiles() {
-        humanPlayer.drawTiles(tileBag, 7 - humanPlayer.getRack().size());
-        computerPlayer.drawTiles(tileBag, 7 - computerPlayer.getRack().size());
-    }
-
-    private boolean isGameOver() {
-        return tileBag.getRemainingTileCount() == 0 &&
-                (humanPlayer.getRack().isEmpty() || computerPlayer.getRack().isEmpty());
-    }
-
-    private void endGame() {
-        messageLabel.setText("Game Over!");
-        playButton.setDisable(true);
-        passButton.setDisable(true);
-
-        int humanFinalScore = humanPlayer.getScore();
-        int computerFinalScore = computerPlayer.getScore();
-
-        // Subtract remaining tile values
-        for (Tile tile : humanPlayer.getRack()) {
-            humanFinalScore -= tile.getValue();
-        }
-        for (Tile tile : computerPlayer.getRack()) {
-            computerFinalScore -= tile.getValue();
+        // Find main word
+        String mainWord = findWordAt(move.getPositions().get(0), move.isHorizontal());
+        if (mainWord != null) {
+            words.add(mainWord);
         }
 
-        String winner = humanFinalScore > computerFinalScore ? "Human" : "Computer";
-        scoreLabel.setText("Final Scores - Human: " + humanFinalScore + " | Computer: " + computerFinalScore +
-                "\nWinner: " + winner);
+        // Find crossing words
+        for (Position pos : move.getPositions()) {
+            String crossWord = findWordAt(pos, !move.isHorizontal());
+            if (crossWord != null && crossWord.length() > 1) {
+                words.add(crossWord);
+            }
+        }
+
+        return words;
     }
 
-    public static void main(String[] args) {
-        launch(args);
+    private String findWordAt(Position pos, boolean horizontal) {
+        StringBuilder word = new StringBuilder();
+        Position current = findWordStart(pos, horizontal);
+
+        // Build word
+        while (true) {
+            Square square = board.getSquare(current.getRow(), current.getCol());
+            if (square == null || square.isEmpty()) {
+                break;
+            }
+            word.append(square.getTile().getLetter());
+
+            current = horizontal ?
+                    new Position(current.getRow(), current.getCol() + 1) :
+                    new Position(current.getRow() + 1, current.getCol());
+        }
+
+        return word.length() > 0 ? word.toString() : null;
+    }
+
+    private Position findWordStart(Position pos, boolean horizontal) {
+        Position current = pos;
+
+        while (true) {
+            Position prev = horizontal ?
+                    new Position(current.getRow(), current.getCol() - 1) :
+                    new Position(current.getRow() - 1, current.getCol());
+
+            Square square = board.getSquare(prev.getRow(), prev.getCol());
+            if (square == null || square.isEmpty()) {
+                break;
+            }
+            current = prev;
+        }
+
+        return current;
+    }
+
+    private boolean connectsToExistingTiles(Move move) {
+        for (Position pos : move.getPositions()) {
+            // Check all adjacent positions
+            Position[] adjacent = {
+                    new Position(pos.getRow() - 1, pos.getCol()),
+                    new Position(pos.getRow() + 1, pos.getCol()),
+                    new Position(pos.getRow(), pos.getCol() - 1),
+                    new Position(pos.getRow(), pos.getCol() + 1)
+            };
+
+            for (Position adj : adjacent) {
+                Square square = board.getSquare(adj.getRow(), adj.getCol());
+                if (square != null && !square.isEmpty() &&
+                        !move.getPositions().contains(adj)) {
+                    return true;
+                }
+            }
+        }
+        return false;
+    }
+
+    private int calculateScore(Move move) {
+        int totalScore = 0;
+        Set<String> wordsFormed = new HashSet<>(findWordsFormed(move));
+
+        for (String word : wordsFormed) {
+            totalScore += calculateWordScore(word, move);
+        }
+
+        // Add bingo bonus (50 points for using all 7 tiles)
+        if (move.getTiles().size() == 7) {
+            totalScore += 50;
+            gameLog.add(currentPlayer.getName() + " scored a BINGO! (+50 points)");
+        }
+
+        return totalScore;
+    }
+
+    private int calculateWordScore(String word, Move move) {
+        int score = 0;
+        int wordMultiplier = 1;
+        Position current = findWordStart(move.getPositions().get(0), move.isHorizontal());
+
+        for (char c : word.toCharArray()) {
+            Square square = board.getSquare(current.getRow(), current.getCol());
+            Tile tile = square.getTile();
+
+            score += tile.getValue() * square.getLetterMultiplier();
+            wordMultiplier *= square.getWordMultiplier();
+
+            current = move.isHorizontal() ?
+                    new Position(current.getRow(), current.getCol() + 1) :
+                    new Position(current.getRow() + 1, current.getCol());
+        }
+
+        return score * wordMultiplier;
+    }
+
+    private boolean checkGameOver() {
+        return tileBag.isEmpty() &&
+                (humanPlayer.getRack().isEmpty() || computerPlayer.getRack().isEmpty()) ||
+                consecutivePasses >= MAX_PASSES;
+    }
+
+    private void handleGameOver() {
+        gameOver = true;
+        calculateFinalScores();
+        notifyGameOver();
+    }
+
+    private void calculateFinalScores() {
+        // Deduct points for remaining tiles
+        int humanDeduction = calculateRemainingTilePoints(humanPlayer.getRack());
+        int computerDeduction = calculateRemainingTilePoints(computerPlayer.getRack());
+
+        humanPlayer.updateScore(-humanDeduction);
+        computerPlayer.updateScore(-computerDeduction);
+
+        // If one player used all tiles, add opponent's remaining tile points
+        if (humanPlayer.getRack().isEmpty()) {
+            humanPlayer.updateScore(computerDeduction);
+            gameLog.add("Human player used all tiles! Adding opponent's remaining points.");
+        } else if (computerPlayer.getRack().isEmpty()) {
+            computerPlayer.updateScore(humanDeduction);
+            gameLog.add("Computer player used all tiles! Adding opponent's remaining points.");
+        }
+
+        // Log final scores
+        gameLog.add("Game Over!");
+        gameLog.add(String.format("Final Scores - %s: %d, %s: %d",
+                humanPlayer.getName(), humanPlayer.getScore(),
+                computerPlayer.getName(), computerPlayer.getScore()));
+    }
+
+    private int calculateRemainingTilePoints(TileRack rack) {
+        int points = 0;
+        for (Tile tile : rack.getTiles()) {
+            points += tile.getValue();
+        }
+        return points;
+    }
+
+    private void switchPlayer() {
+        currentPlayer = (currentPlayer == humanPlayer) ? computerPlayer : humanPlayer;
+    }
+
+    private String constructWordString(Move move) {
+        StringBuilder sb = new StringBuilder();
+        for (Tile tile : move.getTiles()) {
+            sb.append(tile.getLetter());
+        }
+        return sb.toString();
+    }
+
+    // Getters
+    public Board getBoard() {
+        return board;
+    }
+
+    public Player getCurrentPlayer() {
+        return currentPlayer;
+    }
+
+    public Player getHumanPlayer() {
+        return humanPlayer;
+    }
+
+    public Player getComputerPlayer() {
+        return computerPlayer;
+    }
+
+    public boolean isGameOver() {
+        return gameOver;
+    }
+
+    public int getRemainingTiles() {
+        return tileBag.getRemainingTiles();
+    }
+
+    public List<String> getGameLog() {
+        return new ArrayList<>(gameLog);
+    }
+
+    public Dictionary getDictionary() {
+        return dictionary;
     }
 }

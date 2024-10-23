@@ -1,49 +1,59 @@
 package ScrabbleGame;
+
 public class Square {
-    private SquareType type;
     private Tile tile;
+    private int letterMultiplier;
+    private int wordMultiplier;
+    private boolean isPremiumUsed;
 
-    public Square(SquareType type) {
-        this.type = type;
+    public Square(int letterMultiplier, int wordMultiplier) {
+        this.letterMultiplier = letterMultiplier;
+        this.wordMultiplier = wordMultiplier;
         this.tile = null;
-    }
-
-    public SquareType getType() {
-        return type;
-    }
-
-    public Tile getTile() {
-        return tile;
-    }
-
-    public void setTile(Tile tile) {
-        this.tile = tile;
-    }
-
-    public void removeTile() {
-        this.tile = null;
+        this.isPremiumUsed = false;
     }
 
     public boolean isEmpty() {
         return tile == null;
     }
 
+    public void placeTile(Tile tile) {
+        this.tile = tile;
+    }
+
+    public Tile removeTile() {
+        Tile removedTile = this.tile;
+        this.tile = null;
+        return removedTile;
+    }
+
+    public Tile getTile() {
+        return tile;
+    }
+
+    public int getLetterMultiplier() {
+        return isPremiumUsed ? 1 : letterMultiplier;
+    }
+
+    public int getWordMultiplier() {
+        return isPremiumUsed ? 1 : wordMultiplier;
+    }
+
+    public void usePremium() {
+        isPremiumUsed = true;
+    }
+
     @Override
     public String toString() {
         if (tile != null) {
-            return "[" + tile.getLetter() + "]";
-        } else {
-            switch (type) {
-                case TRIPLE_WORD: return "[TW]";
-                case DOUBLE_WORD: return "[DW]";
-                case TRIPLE_LETTER: return "[TL]";
-                case DOUBLE_LETTER: return "[DL]";
-                default: return "[ ]";
-            }
+            return " " + tile.toString();
         }
+        if (wordMultiplier > 1) {
+            return wordMultiplier + ".";
+        }
+        if (letterMultiplier > 1) {
+            return "." + letterMultiplier;
+        }
+        return "..";
     }
-}
-
-enum SquareType {
-    NORMAL, DOUBLE_LETTER, TRIPLE_LETTER, DOUBLE_WORD, TRIPLE_WORD
 }

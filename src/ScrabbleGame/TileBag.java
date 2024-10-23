@@ -10,10 +10,10 @@ public class TileBag {
     public TileBag() {
         tiles = new ArrayList<>();
         initializeTiles();
-        shuffleTiles();
     }
 
     private void initializeTiles() {
+        // Standard Scrabble distribution
         addTiles('A', 1, 9);
         addTiles('B', 3, 2);
         addTiles('C', 3, 2);
@@ -40,16 +40,23 @@ public class TileBag {
         addTiles('X', 8, 1);
         addTiles('Y', 4, 2);
         addTiles('Z', 10, 1);
-        addTiles(' ', 0, 2); // Blank tiles
+        // Add blank tiles
+        addTiles('*', 0, 2, true);
+
+        shuffle();
     }
 
     private void addTiles(char letter, int value, int count) {
+        addTiles(letter, value, count, false);
+    }
+
+    private void addTiles(char letter, int value, int count, boolean isBlank) {
         for (int i = 0; i < count; i++) {
-            tiles.add(new Tile(letter, value));
+            tiles.add(new Tile(letter, value, isBlank));
         }
     }
 
-    private void shuffleTiles() {
+    public void shuffle() {
         Collections.shuffle(tiles);
     }
 
@@ -60,12 +67,19 @@ public class TileBag {
         return tiles.remove(tiles.size() - 1);
     }
 
-    public void addTile(Tile tile) {
-        tiles.add(tile);
-        shuffleTiles();
+    public int getRemainingTiles() {
+        return tiles.size();
     }
 
-    public int getRemainingTileCount() {
-        return tiles.size();
+    public boolean isEmpty() {
+        return tiles.isEmpty();
+    }
+    public void addTile(Tile tile) {
+        tiles.add(tile);
+        shuffle();
+    }
+
+    public void returnTile(Tile tile) {
+        addTile(tile);
     }
 }
