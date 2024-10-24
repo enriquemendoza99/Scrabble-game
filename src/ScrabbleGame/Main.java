@@ -6,6 +6,7 @@ public class Main {
             System.out.println("Usage: java ScrabbleGame.Main " +
                     "<dictionary-file>");
             System.exit(1);
+
         }
         String dictionaryFile = args[0];
 
