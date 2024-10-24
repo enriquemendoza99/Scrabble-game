@@ -10,7 +10,17 @@ public class Board {
     }
 
     private void initializeBoard() {
-        // Initialize with standard Scrabble board premium squares
+        // Initialize all squares empty, with appropriate multipliers
+        for (int row = 0; row < SIZE; row++) {
+            for (int col = 0; col < SIZE; col++) {
+                squares[row][col] = new Square(getLetterMultiplier(row, col),
+                        getWordMultiplier(row, col));
+            }
+        }
+    }
+
+    public void clear() {
+        // Reset all squares to empty state
         for (int row = 0; row < SIZE; row++) {
             for (int col = 0; col < SIZE; col++) {
                 squares[row][col] = new Square(getLetterMultiplier(row, col),
@@ -57,42 +67,29 @@ public class Board {
         return 1;
     }
 
-    public boolean placeTiles(Move move) {
-        if (!move.isValid()) {
-            return false;
-        }
-
-        for (Position pos : move.getPositions()) {
-            squares[pos.getRow()][pos.getCol()].placeTile(move.getTileAt(pos));
-            squares[pos.getRow()][pos.getCol()].usePremium();
-        }
-        return true;
-    }
-
     public Square getSquare(int row, int col) {
-        if (row < 0 || row >= SIZE || col < 0 || col >= SIZE) {
-            return null;
+        if (row >= 0 && row < SIZE && col >= 0 && col < SIZE) {
+            return squares[row][col];
         }
-        return squares[row][col];
+        return null;
     }
 
     public boolean isFirstMove() {
         return squares[7][7].isEmpty();
     }
 
-    @Override
-    public String toString() {
-        StringBuilder sb = new StringBuilder();
-        sb.append(SIZE).append("\n");
-        for (int row = 0; row < SIZE; row++) {
-            for (int col = 0; col < SIZE; col++) {
-                sb.append(squares[row][col].toString());
-                if (col < SIZE - 1) {
-                    sb.append(" ");
-                }
-            }
-            sb.append("\n");
+    public boolean placeTiles(Move move) {
+        if (!move.isValid()) {
+            return false;
         }
-        return sb.toString();
+
+        for (Position pos : move.getPositions()) {
+            if (pos.getRow() >= 0 && pos.getRow() < SIZE &&
+                    pos.getCol() >= 0 && pos.getCol() < SIZE) {
+                squares[pos.getRow()][pos.getCol()].placeTile(move.getTileAt(pos));
+                squares[pos.getRow()][pos.getCol()].usePremium();
+            }
+        }
+        return true;
     }
 }

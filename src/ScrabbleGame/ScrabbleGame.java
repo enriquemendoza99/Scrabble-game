@@ -13,8 +13,8 @@ public class ScrabbleGame {
     private boolean gameOver;
     private List<String> gameLog;
     private int consecutivePasses;
-    private static final int MAX_PASSES = 6;
     private List<GameStateListener> gameStateListeners;
+    private static final int MAX_PASSES = 6;
 
     public interface GameStateListener {
         void onGameStateChanged();
@@ -22,24 +22,20 @@ public class ScrabbleGame {
         void onGameOver();
     }
 
-    public ScrabbleGame(String dictionaryFile) {
-        try {
-            initialize(dictionaryFile);
-        } catch (IOException e) {
-            throw new RuntimeException("Failed to initialize game: " + e.getMessage());
-        }
-    }
+    public ScrabbleGame(String dictionaryFile) throws IOException {
+        // Initialize lists
+        gameStateListeners = new ArrayList<>();
+        gameLog = new ArrayList<>();
 
-    private void initialize(String dictionaryFile) throws IOException {
-        // Initialize components
+        // Load dictionary
         dictionary = new Dictionary();
         dictionary.loadDictionary(dictionaryFile);
 
+        // Create board and tile bag
         board = new Board();
         tileBag = new TileBag();
-        gameLog = new ArrayList<>();
-        gameStateListeners = new ArrayList<>();
 
+        // Create players
         humanPlayer = new HumanPlayer("Human");
         computerPlayer = new ComputerPlayer("Computer", dictionary);
 
@@ -47,15 +43,16 @@ public class ScrabbleGame {
         humanPlayer.drawTiles(tileBag);
         computerPlayer.drawTiles(tileBag);
 
-        // Determine who goes first
+        // Game setup
         determineFirstPlayer();
-
         gameOver = false;
         consecutivePasses = 0;
     }
 
     public void addGameStateListener(GameStateListener listener) {
-        gameStateListeners.add(listener);
+        if (listener != null) {
+            gameStateListeners.add(listener);
+        }
     }
 
     private void notifyGameStateChanged() {
@@ -77,7 +74,6 @@ public class ScrabbleGame {
     }
 
     private void determineFirstPlayer() {
-        // Find the player with the letter closest to 'A'
         char humanBest = 'Z';
         char computerBest = 'Z';
 
@@ -94,6 +90,7 @@ public class ScrabbleGame {
         }
 
         currentPlayer = (humanBest <= computerBest) ? humanPlayer : computerPlayer;
+        notifyGameStateChanged();
     }
 
     public boolean makeMove(Move move) {
@@ -110,16 +107,15 @@ public class ScrabbleGame {
         currentPlayer.updateScore(moveScore);
 
         // Log the move
-        String moveLog = String.format("%s played %s for %d points",
+        gameLog.add(String.format("%s played %s for %d points",
                 currentPlayer.getName(),
                 constructWordString(move),
-                moveScore);
-        gameLog.add(moveLog);
+                moveScore));
 
         // Draw new tiles
         currentPlayer.drawTiles(tileBag);
 
-        // Reset consecutive passes since a move was made
+        // Reset consecutive passes
         consecutivePasses = 0;
 
         notifyMoveCompleted(currentPlayer, move, moveScore);
@@ -131,7 +127,6 @@ public class ScrabbleGame {
             switchPlayer();
         }
 
-        notifyGameStateChanged();
         return true;
     }
 
@@ -142,6 +137,7 @@ public class ScrabbleGame {
 
         consecutivePasses++;
         gameLog.add(currentPlayer.getName() + " passed their turn");
+        System.out.println(currentPlayer.getName() + " passed their turn. Consecutive passes: " + consecutivePasses);
 
         if (consecutivePasses >= MAX_PASSES) {
             handleGameOver();
@@ -173,25 +169,8 @@ public class ScrabbleGame {
         return false;
     }
 
-    public Move getComputerMove() {
-        if (currentPlayer == computerPlayer && !gameOver) {
-            return computerPlayer.makeMove(board);
-        }
-        return null;
-    }
-
     private boolean isValidMove(Move move) {
         if (move == null || move.getTiles().isEmpty()) {
-            return false;
-        }
-
-        // Validate tile ownership
-        if (!hasRequiredTiles(currentPlayer, move)) {
-            return false;
-        }
-
-        // Check if tiles are in a straight line
-        if (!move.isValid()) {
             return false;
         }
 
@@ -209,6 +188,16 @@ public class ScrabbleGame {
             }
         }
 
+        // Check if tiles are in a straight line
+        if (!move.isValid()) {
+            return false;
+        }
+
+        // Check connection to existing tiles (except first move)
+        if (!board.isFirstMove() && !connectsToExistingTiles(move)) {
+            return false;
+        }
+
         // Validate all words formed
         List<String> wordsFormed = findWordsFormed(move);
         for (String word : wordsFormed) {
@@ -217,60 +206,20 @@ public class ScrabbleGame {
             }
         }
 
-        // Check connection to existing tiles (except first move)
-        if (!board.isFirstMove() && !connectsToExistingTiles(move)) {
-            return false;
-        }
-
         return true;
     }
-
-    private boolean hasRequiredTiles(Player player, Move move) {
-        Map<Character, Integer> rackTiles = new HashMap<>();
-        int blanks = 0;
-
-        // Count tiles in rack
-        for (Tile tile : player.getRack().getTiles()) {
-            if (tile.isBlank()) {
-                blanks++;
-            } else {
-                rackTiles.merge(tile.getLetter(), 1, Integer::sum);
-            }
-        }
-
-        // Check if player has all required tiles
-        for (Tile tile : move.getTiles()) {
-            if (tile.isBlank()) {
-                if (blanks > 0) {
-                    blanks--;
-                } else {
-                    return false;
-                }
-            } else {
-                int count = rackTiles.getOrDefault(tile.getLetter(), 0);
-                if (count > 0) {
-                    rackTiles.put(tile.getLetter(), count - 1);
-                } else {
-                    return false;
-                }
-            }
-        }
-
-        return true;
-    }
-
     private List<String> findWordsFormed(Move move) {
         List<String> words = new ArrayList<>();
 
         // Find main word
-        String mainWord = findWordAt(move.getPositions().get(0), move.isHorizontal());
-        if (mainWord != null) {
+        String mainWord = findWordInDirection(move, move.isHorizontal());
+        if (mainWord != null && mainWord.length() > 1) {
             words.add(mainWord);
         }
 
         // Find crossing words
         for (Position pos : move.getPositions()) {
-            String crossWord = findWordAt(pos, !move.isHorizontal());
+            String crossWord = findWordInDirection(move, !move.isHorizontal(), pos);
             if (crossWord != null && crossWord.length() > 1) {
                 words.add(crossWord);
             }
@@ -278,48 +227,80 @@ public class ScrabbleGame {
 
         return words;
     }
+    private String findWordInDirection(Move move, boolean horizontal) {
+        // Find start position of main word
+        Position start = findWordStart(move, horizontal);
+        return findWordInDirection(move, horizontal, start);
+    }
 
-    private String findWordAt(Position pos, boolean horizontal) {
+    private String findWordInDirection(Move move, boolean horizontal, Position startPos) {
         StringBuilder word = new StringBuilder();
-        Position current = findWordStart(pos, horizontal);
+        Position current = new Position(startPos.getRow(), startPos.getCol());
 
-        // Build word
-        while (true) {
-            Square square = board.getSquare(current.getRow(), current.getCol());
-            if (square == null || square.isEmpty()) {
+        while (current != null) {
+            Tile tile = null;
+
+            // Check if there's a tile in the current move at this position
+            tile = move.getTileAt(current);
+
+            // If no tile in move, check board
+            if (tile == null) {
+                Square square = board.getSquare(current.getRow(), current.getCol());
+                if (square != null && !square.isEmpty()) {
+                    tile = square.getTile();
+                }
+            }
+
+            if (tile == null) {
                 break;
             }
-            word.append(square.getTile().getLetter());
 
-            current = horizontal ?
-                    new Position(current.getRow(), current.getCol() + 1) :
-                    new Position(current.getRow() + 1, current.getCol());
+            word.append(tile.getLetter());
+
+            // Move to next position
+            if (horizontal) {
+                current = new Position(current.getRow(), current.getCol() + 1);
+            } else {
+                current = new Position(current.getRow() + 1, current.getCol());
+            }
+
+            // Check board boundaries
+            if (current.getRow() >= 15 || current.getCol() >= 15) {
+                break;
+            }
         }
 
         return word.length() > 0 ? word.toString() : null;
     }
+    private Position findWordStart(Move move, boolean horizontal) {
+        Position start = move.getPositions().get(0);
+        int row = start.getRow();
+        int col = start.getCol();
 
-    private Position findWordStart(Position pos, boolean horizontal) {
-        Position current = pos;
-
+        // Move backwards until we find the start of the word
         while (true) {
-            Position prev = horizontal ?
-                    new Position(current.getRow(), current.getCol() - 1) :
-                    new Position(current.getRow() - 1, current.getCol());
+            Position prev;
+            if (horizontal) {
+                prev = new Position(row, col - 1);
+            } else {
+                prev = new Position(row - 1, col);
+            }
 
             Square square = board.getSquare(prev.getRow(), prev.getCol());
             if (square == null || square.isEmpty()) {
                 break;
             }
-            current = prev;
+
+            row = prev.getRow();
+            col = prev.getCol();
         }
 
-        return current;
+        return new Position(row, col);
     }
 
     private boolean connectsToExistingTiles(Move move) {
         for (Position pos : move.getPositions()) {
-            // Check all adjacent positions
+            // Check adjacent positions
             Position[] adjacent = {
                     new Position(pos.getRow() - 1, pos.getCol()),
                     new Position(pos.getRow() + 1, pos.getCol()),
@@ -329,8 +310,7 @@ public class ScrabbleGame {
 
             for (Position adj : adjacent) {
                 Square square = board.getSquare(adj.getRow(), adj.getCol());
-                if (square != null && !square.isEmpty() &&
-                        !move.getPositions().contains(adj)) {
+                if (square != null && !square.isEmpty()) {
                     return true;
                 }
             }
@@ -340,13 +320,20 @@ public class ScrabbleGame {
 
     private int calculateScore(Move move) {
         int totalScore = 0;
-        Set<String> wordsFormed = new HashSet<>(findWordsFormed(move));
+        int wordMultiplier = 1;
 
-        for (String word : wordsFormed) {
-            totalScore += calculateWordScore(word, move);
+        // Calculate main word score
+        for (Position pos : move.getPositions()) {
+            Square square = board.getSquare(pos.getRow(), pos.getCol());
+            Tile tile = move.getTileAt(pos);
+
+            totalScore += tile.getValue() * square.getLetterMultiplier();
+            wordMultiplier *= square.getWordMultiplier();
         }
 
-        // Add bingo bonus (50 points for using all 7 tiles)
+        totalScore *= wordMultiplier;
+
+        // Add bonus for using all tiles (50 points)
         if (move.getTiles().size() == 7) {
             totalScore += 50;
             gameLog.add(currentPlayer.getName() + " scored a BINGO! (+50 points)");
@@ -355,24 +342,9 @@ public class ScrabbleGame {
         return totalScore;
     }
 
-    private int calculateWordScore(String word, Move move) {
-        int score = 0;
-        int wordMultiplier = 1;
-        Position current = findWordStart(move.getPositions().get(0), move.isHorizontal());
-
-        for (char c : word.toCharArray()) {
-            Square square = board.getSquare(current.getRow(), current.getCol());
-            Tile tile = square.getTile();
-
-            score += tile.getValue() * square.getLetterMultiplier();
-            wordMultiplier *= square.getWordMultiplier();
-
-            current = move.isHorizontal() ?
-                    new Position(current.getRow(), current.getCol() + 1) :
-                    new Position(current.getRow() + 1, current.getCol());
-        }
-
-        return score * wordMultiplier;
+    private void switchPlayer() {
+        currentPlayer = (currentPlayer == humanPlayer) ? computerPlayer : humanPlayer;
+        notifyGameStateChanged();
     }
 
     private boolean checkGameOver() {
@@ -404,7 +376,6 @@ public class ScrabbleGame {
             gameLog.add("Computer player used all tiles! Adding opponent's remaining points.");
         }
 
-        // Log final scores
         gameLog.add("Game Over!");
         gameLog.add(String.format("Final Scores - %s: %d, %s: %d",
                 humanPlayer.getName(), humanPlayer.getScore(),
@@ -417,10 +388,6 @@ public class ScrabbleGame {
             points += tile.getValue();
         }
         return points;
-    }
-
-    private void switchPlayer() {
-        currentPlayer = (currentPlayer == humanPlayer) ? computerPlayer : humanPlayer;
     }
 
     private String constructWordString(Move move) {
@@ -462,5 +429,12 @@ public class ScrabbleGame {
 
     public Dictionary getDictionary() {
         return dictionary;
+    }
+
+    public Move getComputerMove() {
+        if (currentPlayer == computerPlayer && !gameOver) {
+            return computerPlayer.makeMove(board);
+        }
+        return null;
     }
 }

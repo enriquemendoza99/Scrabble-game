@@ -10,8 +10,15 @@ import javafx.scene.paint.Color;
 import javafx.scene.shape.Rectangle;
 import javafx.scene.text.Text;
 import javafx.scene.text.Font;
+import javafx.scene.text.FontWeight;
 import javafx.stage.Stage;
 import javafx.scene.input.*;
+import javafx.scene.Cursor;
+import javafx.scene.SnapshotParameters;
+import javafx.scene.image.WritableImage;
+import javafx.animation.Timeline;
+import javafx.animation.KeyFrame;
+import javafx.util.Duration;
 import java.io.File;
 import java.util.*;
 
@@ -26,23 +33,22 @@ public class ScrabbleUI extends Application implements ScrabbleGame.GameStateLis
     private Button passButton;
 
     private static final int SQUARE_SIZE = 40;
-    private static final String DICTIONARY_FILE = "sowpods.txt";
+    public static String dictionaryFile;
 
     @Override
     public void start(Stage primaryStage) {
         try {
             // Verify dictionary file exists
-            File dict = new File(DICTIONARY_FILE);
+            File dict = new File(dictionaryFile);
             if (!dict.exists()) {
                 showError("Dictionary Error",
-                        "Dictionary file 'sowpods.txt' not found!\n" +
-                                "Please make sure 'sowpods.txt' is in the same directory as the program.");
+                        "Dictionary file"+ dictionaryFile+ "not found!\n");
                 Platform.exit();
                 return;
             }
 
             // Initialize game
-            game = new ScrabbleGame(DICTIONARY_FILE);
+            game = new ScrabbleGame(dictionaryFile);
             game.addGameStateListener(this);
 
             // Create main layout
@@ -88,7 +94,7 @@ public class ScrabbleUI extends Application implements ScrabbleGame.GameStateLis
             e.printStackTrace();
             showError("Game Initialization Error",
                     "Failed to start the game: " + e.getMessage() + "\n" +
-                            "Please make sure 'sowpods.txt' is present and valid.");
+                            "Please make sure the dictionary is valid.");
             Platform.exit();
         }
     }
@@ -116,9 +122,11 @@ public class ScrabbleUI extends Application implements ScrabbleGame.GameStateLis
     private HBox createControlButtons() {
         HBox controls = new HBox(10);
         controls.setAlignment(Pos.CENTER);
+        controls.setPadding(new Insets(5));
 
         playButton = new Button("Play Move");
         playButton.setOnAction(e -> handlePlayMove());
+        playButton.setStyle("-fx-font-weight: bold;");
 
         exchangeButton = new Button("Exchange Tiles");
         exchangeButton.setOnAction(e -> handleExchangeTiles());
@@ -170,31 +178,59 @@ public class ScrabbleUI extends Application implements ScrabbleGame.GameStateLis
 
             setPrefSize(SQUARE_SIZE, SQUARE_SIZE);
 
-            background = new Rectangle(SQUARE_SIZE, SQUARE_SIZE);
-            letter = new Text();
-            score = new Text();
+            background = new Rectangle(SQUARE_SIZE - 1, SQUARE_SIZE - 1);
+            background.setStroke(Color.BLACK);
+            background.setStrokeWidth(0.5);
 
-            letter.setFont(Font.font(20));
-            score.setFont(Font.font(10));
+            letter = new Text();
+            letter.setFont(Font.font("Arial", FontWeight.BOLD, 20));
+
+            score = new Text();
+            score.setFont(Font.font("Arial", 10));
 
             getChildren().addAll(background, letter, score);
+
+            // Drag and drop handlers
+            setOnDragEntered(e -> {
+                if (e.getGestureSource() instanceof TileView && isEmpty()) {
+                    background.setStroke(Color.YELLOW);
+                    background.setStrokeWidth(2);
+                }
+                e.consume();
+            });
+
+            setOnDragExited(e -> {
+                background.setStroke(Color.BLACK);
+                background.setStrokeWidth(0.5);
+                e.consume();
+            });
 
             setOnDragOver(e -> {
                 if (e.getGestureSource() instanceof TileView &&
                         !game.getCurrentPlayer().isComputer() &&
-                        !game.isGameOver()) {
+                        !game.isGameOver() &&
+                        isEmpty()) {
                     e.acceptTransferModes(TransferMode.MOVE);
                 }
                 e.consume();
             });
 
             setOnDragDropped(e -> {
-                TileView source = (TileView)e.getGestureSource();
-                if (source != null) {
-                    handleTilePlacement(source.getTile(), row, col);
+                Dragboard db = e.getDragboard();
+                boolean success = false;
+
+                if (db.hasString() && isEmpty()) {
+                    TileView source = (TileView)e.getGestureSource();
+                    success = handleTilePlacement(source.getTile(), row, col);
                 }
+
+                e.setDropCompleted(success);
                 e.consume();
             });
+        }
+
+        private boolean isEmpty() {
+            return game.getBoard().getSquare(row, col).isEmpty();
         }
 
         public void update(Square square) {
@@ -211,7 +247,11 @@ public class ScrabbleUI extends Application implements ScrabbleGame.GameStateLis
         }
 
         private void setSquareColor(Square square) {
-            if (square.getWordMultiplier() == 3) {
+            if (game.getBoard().isFirstMove() && row == 7 && col == 7) {
+                background.setFill(Color.GOLD);
+                background.setStroke(Color.ORANGE);
+                background.setStrokeWidth(2);
+            } else if (square.getWordMultiplier() == 3) {
                 background.setFill(Color.RED);
             } else if (square.getWordMultiplier() == 2) {
                 background.setFill(Color.PINK);
@@ -232,7 +272,7 @@ public class ScrabbleUI extends Application implements ScrabbleGame.GameStateLis
             setSpacing(5);
             setPadding(new Insets(10));
             setAlignment(Pos.CENTER);
-            setStyle("-fx-background-color: burlywood;");
+            setStyle("-fx-background-color: burlywood; -fx-border-color: brown; -fx-border-width: 2;");
             tileViews = new ArrayList<>();
         }
 
@@ -248,43 +288,87 @@ public class ScrabbleUI extends Application implements ScrabbleGame.GameStateLis
             }
         }
     }
-
     private class TileView extends StackPane {
         private Tile tile;
+        private boolean isDragging = false;
+        private boolean hasBeenUsed = false;
 
         public TileView(Tile tile) {
             this.tile = tile;
 
             setPrefSize(SQUARE_SIZE, SQUARE_SIZE);
+            setCursor(Cursor.HAND);
 
             Rectangle background = new Rectangle(SQUARE_SIZE - 2, SQUARE_SIZE - 2);
             background.setFill(Color.BEIGE);
             background.setStroke(Color.BLACK);
+            background.setStrokeWidth(1);
 
             Text letter = new Text(String.valueOf(tile.getLetter()));
-            letter.setFont(Font.font(20));
+            letter.setFont(Font.font("Arial", FontWeight.BOLD, 20));
 
             Text value = new Text(String.valueOf(tile.getValue()));
-            value.setFont(Font.font(10));
+            value.setFont(Font.font("Arial", 10));
             value.setTranslateY(10);
 
             getChildren().addAll(background, letter, value);
 
+            setOnMouseEntered(e -> {
+                if (!isDragging) {
+                    background.setFill(Color.LIGHTYELLOW);
+                }
+            });
+
+            setOnMouseExited(e -> {
+                if (!isDragging) {
+                    background.setFill(Color.BEIGE);
+                }
+            });
+
             setOnDragDetected(e -> {
                 if (!game.getCurrentPlayer().isComputer() && !game.isGameOver()) {
+                    isDragging = true;
                     Dragboard db = startDragAndDrop(TransferMode.MOVE);
+
+                    SnapshotParameters sp = new SnapshotParameters();
+                    sp.setFill(Color.TRANSPARENT);
+                    WritableImage snapshot = snapshot(sp, null);
+                    db.setDragView(snapshot, snapshot.getWidth() / 2, snapshot.getHeight() / 2);
+
                     ClipboardContent content = new ClipboardContent();
-                    content.putString(String.valueOf(tile.getLetter()));
+                    content.putString(tile.getLetter() + "," + tile.getValue() + "," + tile.isBlank());
                     db.setContent(content);
-                    e.consume();
+
+                    setOpacity(0.5);
                 }
+                e.consume();
+            });
+
+            setOnDragDone(e -> {
+                isDragging = false;
+                setOpacity(1.0);
+                if (e.getTransferMode() == TransferMode.MOVE) {
+                    hasBeenUsed = true;  // Actualizado para usar el nuevo nombre
+                    setVisible(false);
+                }
+                e.consume();
             });
         }
 
         public Tile getTile() {
             return tile;
         }
+
+        public boolean isUsed() {
+            return hasBeenUsed;
+        }
+
+        public void setUsed(boolean used) {
+            hasBeenUsed = used;
+            setVisible(!used);
+        }
     }
+
 
     @Override
     public void onGameStateChanged() {
@@ -311,19 +395,8 @@ public class ScrabbleUI extends Application implements ScrabbleGame.GameStateLis
             playButton.setDisable(true);
             exchangeButton.setDisable(true);
             passButton.setDisable(true);
-
             showGameOverDialog(winner);
         });
-    }
-
-    private void showGameOverDialog(String winner) {
-        Alert alert = new Alert(Alert.AlertType.INFORMATION);
-        alert.setTitle("Game Over");
-        alert.setHeaderText(winner + " Wins!");
-        alert.setContentText(String.format("Final Scores:\nHuman: %d\nComputer: %d",
-                game.getHumanPlayer().getScore(),
-                game.getComputerPlayer().getScore()));
-        alert.showAndWait();
     }
 
     private void updateDisplay() {
@@ -350,18 +423,67 @@ public class ScrabbleUI extends Application implements ScrabbleGame.GameStateLis
     private void handlePlayMove() {
         HumanPlayer player = (HumanPlayer)game.getHumanPlayer();
         Move currentMove = player.getCurrentMove();
+        if (game.getBoard().isFirstMove()) {
+            if (!isValidFirstMove(currentMove)) {
+                showMessage("Invalid first move! Please ensure:\n" +
+                        "- At least two letters are played\n" +
+                        "- One letter is on the center square (row 7, column 7)\n" +
+                        "- Letters form a valid word");
+                return;
+            }
+        }
 
         if (!player.validateCurrentMove(game.getBoard(), game.getDictionary())) {
             showMessage("Invalid move! Please check:\n" +
                     "- Words must be valid\n" +
                     "- Tiles must connect to existing ones\n" +
-                    "- First move must use center square");
+                    "- Letters must form a complete word");
             return;
+        }
+        for (Tile tile : currentMove.getTiles()) {
+            player.getRack().removeTile(tile.getLetter());
         }
 
         if (game.makeMove(currentMove)) {
             handleComputerTurn();
         }
+    }
+    private boolean isValidFirstMove(Move move) {
+        if (move.getTiles().size() < 2) {
+            return false;
+        }
+        boolean usesCenterSquare = false;
+        for (Position pos : move.getPositions()) {
+            if (pos.getRow() == 7 && pos.getCol() == 7) {
+                usesCenterSquare = true;
+                break;
+            }
+        }
+        if (!usesCenterSquare) {
+            return false;
+        }
+        List<Position> positions = move.getPositions();
+        if (positions.size() > 1) {
+            boolean isHorizontal = true;
+            boolean isVertical = true;
+            int row = positions.get(0).getRow();
+            int col = positions.get(0).getCol();
+
+            for (int i = 1; i < positions.size(); i++) {
+                Position pos = positions.get(i);
+                if (pos.getRow() != row) {
+                    isHorizontal = false;
+                }
+                if (pos.getCol() != col) {
+                    isVertical = false;
+                }
+            }
+            if (!isHorizontal && !isVertical) {
+                return false;
+            }
+        }
+
+        return true;
     }
 
     private void handleExchangeTiles() {
@@ -386,23 +508,44 @@ public class ScrabbleUI extends Application implements ScrabbleGame.GameStateLis
 
     private void handleComputerTurn() {
         if (game.getCurrentPlayer().isComputer() && !game.isGameOver()) {
-            Move move = game.getComputerMove();
-            if (move != null) {
-                game.makeMove(move);
-            } else {
-                game.passTurn();
-            }
+            Timeline timeline = new Timeline(new KeyFrame(Duration.seconds(1), event -> {
+                Move computerMove = game.getComputerMove();
+                if (computerMove != null) {
+                    System.out.println("Computer making move: " + constructWordString(computerMove));
+                    if (game.makeMove(computerMove)) {
+                        System.out.println("Computer move successful");
+                    } else {
+                        System.out.println("Computer move failed");
+                        game.passTurn(); // Pass turn if move fails
+                    }
+                } else {
+                    System.out.println("Computer passing turn - no valid moves found");
+                    game.passTurn();
+                    showMessage("Computer passes turn - no valid moves available");
+                }
+                updateDisplay();
+            }));
+            timeline.play();
         }
     }
+    private String constructWordString(Move move) {
+        StringBuilder sb = new StringBuilder();
+        for (Tile tile : move.getTiles()) {
+            sb.append(tile.getLetter());
+        }
+        return sb.toString();
+    }
 
-    private void handleTilePlacement(Tile tile, int row, int col) {
+    private boolean handleTilePlacement(Tile tile, int row, int col) {
         HumanPlayer player = (HumanPlayer)game.getHumanPlayer();
         Position position = new Position(row, col);
-        if (player.placeTile(tile, position, game.getBoard())) {
+        boolean success = player.placeTile(tile, position, game.getBoard());
+
+        if (success) {
             updateDisplay();
-        } else {
-            showMessage("Cannot place tile here");
         }
+
+        return success;
     }
 
     private void showMessage(String message) {
@@ -414,6 +557,16 @@ public class ScrabbleUI extends Application implements ScrabbleGame.GameStateLis
         alert.setTitle("Error");
         alert.setHeaderText(title);
         alert.setContentText(content);
+        alert.showAndWait();
+    }
+
+    private void showGameOverDialog(String winner) {
+        Alert alert = new Alert(Alert.AlertType.INFORMATION);
+        alert.setTitle("Game Over");
+        alert.setHeaderText(winner + " Wins!");
+        alert.setContentText(String.format("Final Scores:\nHuman: %d\nComputer: %d",
+                game.getHumanPlayer().getScore(),
+                game.getComputerPlayer().getScore()));
         alert.showAndWait();
     }
 

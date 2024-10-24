@@ -15,21 +15,36 @@ public class ComputerPlayer extends Player {
 
     @Override
     public Move makeMove(Board board) {
-        // First move is special case
+        System.out.println("Computer trying to make a move");
+
+        // First try to find a valid move
+        Move bestMove = findBestMove(board);
+
+        if (bestMove == null) {
+            System.out.println("Computer couldn't find any valid moves");
+            return null; // This will trigger a pass
+        }
+
+        System.out.println("Computer found move with score: " + bestMove.getScore());
+        return bestMove;
+    }
+    private Move findBestMove(Board board) {
+        // For first move
         if (board.isFirstMove()) {
             return findFirstMove(board);
         }
 
-        // Find best move within time limit
+        // Find best move
         long startTime = System.currentTimeMillis();
         Move bestMove = null;
         int bestScore = 0;
 
         // Find all anchor points
         List<Position> anchors = findAnchors(board);
+        System.out.println("Found " + anchors.size() + " anchor points");
 
+        // Try moves at each anchor point
         for (Position anchor : anchors) {
-            // Check time limit
             if (System.currentTimeMillis() - startTime > MAX_COMPUTE_TIME) {
                 break;
             }
@@ -55,15 +70,7 @@ public class ComputerPlayer extends Player {
             }
         }
 
-        if (bestMove != null) {
-            // Remove used tiles from rack
-            for (Tile tile : bestMove.getTiles()) {
-                rack.removeTile(tile.getLetter());
-            }
-            bestMove.setScore(bestScore);
-        }
-
-        return bestMove;
+        return bestMove; // Will be null if no valid move found
     }
 
     private Move findFirstMove(Board board) {
@@ -341,7 +348,63 @@ public class ComputerPlayer extends Player {
             return findWordInDirection(board, move, pos, true);
         }
     }
+    private List<String> findCrossWords(Board board, Move move) {
+        List<String> crossWords = new ArrayList<>();
+        boolean isHorizontal = move.isHorizontal();
 
+        for (Position pos : move.getPositions()) {
+            StringBuilder crossWord = new StringBuilder();
+
+
+            int row = pos.getRow();
+            int col = pos.getCol();
+
+            if (isHorizontal) {
+
+                while (row > 0 && !board.getSquare(row - 1, col).isEmpty()) {
+                    row--;
+                }
+            } else {
+                while (col > 0 && !board.getSquare(row, col - 1).isEmpty()) {
+                    col--;
+                }
+            }
+
+            Position current = new Position(row, col);
+            while (current != null &&
+                    (board.getSquare(current.getRow(), current.getCol()) != null) &&
+                    (!board.getSquare(current.getRow(), current.getCol()).isEmpty() ||
+                            containsPosition(move.getPositions(), current))) {
+
+                Square square = board.getSquare(current.getRow(), current.getCol());
+                if (!square.isEmpty()) {
+                    crossWord.append(square.getTile().getLetter());
+                } else {
+                    Tile moveTile = getTileAtPosition(move, current);
+                    if (moveTile != null) {
+                        crossWord.append(moveTile.getLetter());
+                    }
+                }
+
+                if (isHorizontal) {
+                    current = new Position(current.getRow() + 1, current.getCol());
+                } else {
+                    current = new Position(current.getRow(), current.getCol() + 1);
+                }
+
+                if (current.getRow() >= 15 || current.getCol() >= 15) {
+                    break;
+                }
+            }
+
+            String word = crossWord.toString();
+            if (word.length() > 1) {
+                crossWords.add(word);
+            }
+        }
+
+        return crossWords;
+    }
     private String findWordInDirection(Board board, Move move, Position pos, boolean horizontal) {
         StringBuilder word = new StringBuilder();
         Position current = pos;
@@ -385,33 +448,96 @@ public class ComputerPlayer extends Player {
 
     private int calculateScore(Board board, Move move) {
         int totalScore = 0;
-        List<String> words = findWordsFormed(board, move);
+        int wordMultiplier = 1;
 
-        for (String word : words) {
-            int wordScore = 0;
-            int wordMultiplier = 1;
+        for (int i = 0; i < move.getTiles().size(); i++) {
+            Tile tile = move.getTiles().get(i);
+            Position pos = move.getPositions().get(i);
+            Square square = board.getSquare(pos.getRow(), pos.getCol());
 
-            for (int i = 0; i < word.length(); i++) {
-                Position pos = move.getPositions().get(i);
-                Square square = board.getSquare(pos.getRow(), pos.getCol());
-                Tile tile = move.getTileAt(pos);
+            int letterScore = tile.getValue() * square.getLetterMultiplier();
+            totalScore += letterScore;
 
-                int letterScore = tile.getValue() * square.getLetterMultiplier();
-                wordScore += letterScore;
-                wordMultiplier *= square.getWordMultiplier();
-            }
 
-            totalScore += wordScore * wordMultiplier;
+            wordMultiplier *= square.getWordMultiplier();
         }
-
-        // Add bonus for using all tiles (Bingo)
+        totalScore *= wordMultiplier;
+        List<String> crossWords = findCrossWords(board, move);
+        for (String word : crossWords) {
+            totalScore += calculateCrossWordScore(board, move, word);
+        }
         if (move.getTiles().size() == 7) {
             totalScore += 50;
         }
 
         return totalScore;
     }
+    private int calculateCrossWordScore(Board board, Move move, String word) {
+        int score = 0;
+        int wordMultiplier = 1;
 
+        for (char c : word.toCharArray()) {
+            Tile tile = new Tile(c, getTileValue(c));
+
+            Position pos = getPositionForLetter(move, c);
+            if (pos != null) {
+                Square square = board.getSquare(pos.getRow(), pos.getCol());
+                score += tile.getValue() * square.getLetterMultiplier();
+                wordMultiplier *= square.getWordMultiplier();
+            } else {
+                score += tile.getValue();
+            }
+        }
+
+        return score * wordMultiplier;
+    }
+    private boolean containsPosition(List<Position> positions, Position pos) {
+        for (Position p : positions) {
+            if (p.getRow() == pos.getRow() && p.getCol() == pos.getCol()) {
+                return true;
+            }
+        }
+        return false;
+    }
+    private Tile getTileAtPosition(Move move, Position pos) {
+        for (int i = 0; i < move.getPositions().size(); i++) {
+            Position movePos = move.getPositions().get(i);
+            if (movePos.getRow() == pos.getRow() && movePos.getCol() == pos.getCol()) {
+                return move.getTiles().get(i);
+            }
+        }
+        return null;
+    }
+
+    private Position getPositionForLetter(Move move, char letter) {
+        for (int i = 0; i < move.getTiles().size(); i++) {
+            if (move.getTiles().get(i).getLetter() == letter) {
+                return move.getPositions().get(i);
+            }
+        }
+        return null;
+    }
+
+    private int getTileValue(char letter) {
+        switch (Character.toUpperCase(letter)) {
+            case 'A': case 'E': case 'I': case 'O': case 'U': case 'N': case 'R': case 'S': case 'T': case 'L':
+                return 1;
+            case 'D': case 'G':
+                return 2;
+            case 'B': case 'C': case 'M': case 'P':
+                return 3;
+            case 'F': case 'H': case 'V': case 'W': case 'Y':
+                return 4;
+            case 'K':
+                return 5;
+            case 'J': case 'X':
+                return 8;
+            case 'Q': case 'Z':
+                return 10;
+            default:
+                return 0;
+        }
+    }
     @Override
     public List<Tile> exchangeTiles(List<Tile> tilesToExchange, TileBag bag) {
         // If no specific tiles were provided, choose tiles to exchange
