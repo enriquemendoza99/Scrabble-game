@@ -26,7 +26,8 @@ public class Dictionary {
      * @throws IOException if there is an error reading the file
      */
     public void loadDictionary(String filename) throws IOException {
-        try (BufferedReader reader = new BufferedReader(new FileReader(filename))) {
+        try (BufferedReader reader =
+                     new BufferedReader(new FileReader(filename))) {
             String word;
             while ((word = reader.readLine()) != null) {
                 words.add(word.trim().toUpperCase());
@@ -45,7 +46,8 @@ public class Dictionary {
         }
         String normalizedWord = word.trim().toUpperCase();
         boolean isValid = words.contains(normalizedWord);
-        System.out.println("Checking word: " + normalizedWord + " - Valid: " + isValid); // For debugging
+        System.out.println("Checking word: " + normalizedWord +
+                " - Valid: " + isValid);
         return isValid;
 
     }

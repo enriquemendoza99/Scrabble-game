@@ -3,9 +3,14 @@ package ScrabbleGame;
 import java.util.*;
 public class ComputerPlayer extends Player {
     private Dictionary dictionary;
-    private static final int MAX_COMPUTE_TIME = 2000; // 2 seconds in milliseconds
+    private static final int MAX_COMPUTE_TIME = 2000;
     private Random random;
 
+    /**
+     *
+     * @param name
+     * @param dictionary
+     */
     public ComputerPlayer(String name, Dictionary dictionary) {
         super(name);
         this.dictionary = dictionary;
@@ -13,6 +18,11 @@ public class ComputerPlayer extends Player {
         this.random = new Random();
     }
 
+    /**
+     *
+     * @param board the current board
+     * @return
+     */
     @Override
     public Move makeMove(Board board) {
         System.out.println("Computer trying to make a move");
@@ -25,32 +35,31 @@ public class ComputerPlayer extends Player {
             return null; // This will trigger a pass
         }
 
-        System.out.println("Computer found move with score: " + bestMove.getScore());
+        System.out.println("Computer found move with score: " +
+                bestMove.getScore());
         return bestMove;
     }
+
+    /**
+     *
+     * @param board
+     * @return
+     */
     private Move findBestMove(Board board) {
-        // For first move
         if (board.isFirstMove()) {
             return findFirstMove(board);
         }
-
-        // Find best move
         long startTime = System.currentTimeMillis();
         Move bestMove = null;
         int bestScore = 0;
-
-        // Find all anchor points
         List<Position> anchors = findAnchors(board);
         System.out.println("Found " + anchors.size() + " anchor points");
-
-        // Try moves at each anchor point
         for (Position anchor : anchors) {
             if (System.currentTimeMillis() - startTime > MAX_COMPUTE_TIME) {
                 break;
             }
-
-            // Try horizontal moves
-            List<Move> horizontalMoves = findMovesFromAnchor(board, anchor, true);
+            List<Move> horizontalMoves = findMovesFromAnchor(board, anchor,
+                    true);
             for (Move move : horizontalMoves) {
                 int score = calculateScore(board, move);
                 if (score > bestScore) {
@@ -58,9 +67,8 @@ public class ComputerPlayer extends Player {
                     bestMove = move;
                 }
             }
-
-            // Try vertical moves
-            List<Move> verticalMoves = findMovesFromAnchor(board, anchor, false);
+            List<Move> verticalMoves = findMovesFromAnchor(board, anchor,
+                    false);
             for (Move move : verticalMoves) {
                 int score = calculateScore(board, move);
                 if (score > bestScore) {
@@ -70,7 +78,7 @@ public class ComputerPlayer extends Player {
             }
         }
 
-        return bestMove; // Will be null if no valid move found
+        return bestMove;
     }
 
     private Move findFirstMove(Board board) {
@@ -79,8 +87,9 @@ public class ComputerPlayer extends Player {
         int bestScore = 0;
 
         for (String word : possibleWords) {
-            if (word.length() >= 2) {  // First word must be at least 2 letters
-                Move move = createMove(word, new Position(7, 7), true);
+            if (word.length() >= 2) {
+                Move move = createMove(word, new Position(7, 7),
+                        true);
                 if (move != null) {
                     int score = calculateScore(board, move);
                     if (score > bestScore) {
@@ -100,8 +109,6 @@ public class ComputerPlayer extends Player {
     private List<Position> findAnchors(Board board) {
         List<Position> anchors = new ArrayList<>();
         boolean[][] visited = new boolean[15][15];
-
-        // Find all squares adjacent to existing tiles
         for (int row = 0; row < 15; row++) {
             for (int col = 0; col < 15; col++) {
                 if (!board.getSquare(row, col).isEmpty()) {
@@ -117,7 +124,7 @@ public class ComputerPlayer extends Player {
     }
 
     private void checkAndAddAnchor(Board board, int row, int col,
-                                   List<Position> anchors, boolean[][] visited) {
+                                   List<Position> anchors, boolean[][] visited){
         if (row >= 0 && row < 15 && col >= 0 && col < 15 &&
                 !visited[row][col] && board.getSquare(row, col).isEmpty()) {
             anchors.add(new Position(row, col));
@@ -125,28 +132,25 @@ public class ComputerPlayer extends Player {
         }
     }
 
-    private List<Move> findMovesFromAnchor(Board board, Position anchor, boolean horizontal) {
+    private List<Move> findMovesFromAnchor(Board board, Position anchor,
+                                           boolean horizontal) {
         List<Move> moves = new ArrayList<>();
         List<String> possibleWords = findPossibleWords(rack.getTiles());
 
         for (String word : possibleWords) {
-            // Try placing the word in different positions relative to the anchor
             for (int i = 0; i < word.length(); i++) {
                 Position start;
                 if (horizontal) {
-                    // Check if word would extend beyond board left edge
                     if (anchor.getCol() - i < 0) continue;
-                    // Check if word would extend beyond board right edge
                     if (anchor.getCol() - i + word.length() > 15) continue;
-                    start = new Position(anchor.getRow(), anchor.getCol() - i);
+                    start = new Position(anchor.getRow(),
+                            anchor.getCol() - i);
                 } else {
-                    // Check if word would extend beyond board top edge
                     if (anchor.getRow() - i < 0) continue;
-                    // Check if word would extend beyond board bottom edge
                     if (anchor.getRow() - i + word.length() > 15) continue;
-                    start = new Position(anchor.getRow() - i, anchor.getCol());
+                    start = new Position(anchor.getRow() - i,
+                            anchor.getCol());
                 }
-
                 Move move = createMove(word, start, horizontal);
                 if (move != null && isValidMove(board, move)) {
                     moves.add(move);
@@ -162,7 +166,7 @@ public class ComputerPlayer extends Player {
         StringBuilder rackLetters = new StringBuilder();
         int blankCount = 0;
 
-        // Build rack letters string and count blanks
+
         for (Tile tile : tiles) {
             if (tile.isBlank()) {
                 blankCount++;
@@ -170,8 +174,6 @@ public class ComputerPlayer extends Player {
                 rackLetters.append(tile.getLetter());
             }
         }
-
-        // Check each dictionary word
         for (String word : dictionary.getWords()) {
             if (canMakeWord(word, rackLetters.toString(), blankCount)) {
                 words.add(word);
@@ -182,25 +184,18 @@ public class ComputerPlayer extends Player {
 
     private boolean canMakeWord(String word, String rackLetters, int blanks) {
         Map<Character, Integer> letterCount = new HashMap<>();
-
-        // Count letters needed for word
         for (char c : word.toUpperCase().toCharArray()) {
             letterCount.merge(c, 1, Integer::sum);
         }
-
-        // Subtract available letters
         for (char c : rackLetters.toUpperCase().toCharArray()) {
             letterCount.merge(c, -1, Integer::sum);
         }
-
-        // Count how many letters we need blanks for
         int neededBlanks = 0;
         for (int count : letterCount.values()) {
             if (count > 0) {
                 neededBlanks += count;
             }
         }
-
         return neededBlanks <= blanks;
     }
 
@@ -209,15 +204,11 @@ public class ComputerPlayer extends Player {
         move.setHorizontal(horizontal);
 
         List<Tile> availableTiles = new ArrayList<>(rack.getTiles());
-
-        // Try to create the word using available tiles
         for (int i = 0; i < word.length(); i++) {
             char letter = word.charAt(i);
             Position pos = horizontal ?
                     new Position(start.getRow(), start.getCol() + i) :
                     new Position(start.getRow() + i, start.getCol());
-
-            // Try to find a regular tile first
             Tile tile = null;
             for (Tile t : availableTiles) {
                 if (!t.isBlank() && t.getLetter() == letter) {
@@ -225,8 +216,6 @@ public class ComputerPlayer extends Player {
                     break;
                 }
             }
-
-            // If no regular tile found, try to use a blank
             if (tile == null) {
                 for (Tile t : availableTiles) {
                     if (t.isBlank()) {
@@ -236,8 +225,6 @@ public class ComputerPlayer extends Player {
                     }
                 }
             }
-
-            // If we couldn't find a tile at all, the move is impossible
             if (tile == null) {
                 return null;
             }
@@ -250,12 +237,9 @@ public class ComputerPlayer extends Player {
     }
 
     private boolean isValidMove(Board board, Move move) {
-        // First check basic move validity
         if (!move.isValid()) {
             return false;
         }
-
-        // For first move
         if (board.isFirstMove()) {
             boolean usesCenterSquare = false;
             for (Position pos : move.getPositions()) {
@@ -268,7 +252,6 @@ public class ComputerPlayer extends Player {
                 return false;
             }
         } else {
-            // Check connection to existing tiles
             boolean connected = false;
             for (Position pos : move.getPositions()) {
                 if (hasAdjacentTile(board, pos, move)) {
@@ -280,15 +263,12 @@ public class ComputerPlayer extends Player {
                 return false;
             }
         }
-
-        // Check all words formed are valid
         List<String> wordsFormed = findWordsFormed(board, move);
         for (String word : wordsFormed) {
             if (!dictionary.isValidWord(word)) {
                 return false;
             }
         }
-
         return true;
     }
 
@@ -299,7 +279,8 @@ public class ComputerPlayer extends Player {
             int newCol = pos.getCol() + dir[1];
             if (newRow >= 0 && newRow < 15 && newCol >= 0 && newCol < 15) {
                 if (!board.getSquare(newRow, newCol).isEmpty() &&
-                        !containsPosition(move.getPositions(), newRow, newCol)) {
+                        !containsPosition(move.getPositions(), newRow,
+                                newCol)) {
                     return true;
                 }
             }
@@ -307,7 +288,8 @@ public class ComputerPlayer extends Player {
         return false;
     }
 
-    private boolean containsPosition(List<Position> positions, int row, int col) {
+    private boolean containsPosition(List<Position> positions, int row,
+                                     int col) {
         for (Position pos : positions) {
             if (pos.getRow() == row && pos.getCol() == col) {
                 return true;
@@ -318,8 +300,6 @@ public class ComputerPlayer extends Player {
 
     private List<String> findWordsFormed(Board board, Move move) {
         List<String> words = new ArrayList<>();
-
-        // Find main word
         StringBuilder mainWord = new StringBuilder();
         List<Position> positions = move.getPositions();
         positions.sort((p1, p2) -> move.isHorizontal() ?
@@ -329,8 +309,6 @@ public class ComputerPlayer extends Player {
             mainWord.append(move.getTileAt(pos).getLetter());
         }
         words.add(mainWord.toString());
-
-        // Find crossing words
         for (Position pos : positions) {
             String crossWord = findCrossWord(board, move, pos);
             if (crossWord != null && crossWord.length() > 1) {
@@ -372,11 +350,13 @@ public class ComputerPlayer extends Player {
 
             Position current = new Position(row, col);
             while (current != null &&
-                    (board.getSquare(current.getRow(), current.getCol()) != null) &&
-                    (!board.getSquare(current.getRow(), current.getCol()).isEmpty() ||
+                    (board.getSquare(current.getRow(), current.getCol()) != null)
+                    && (!board.getSquare(current.getRow(),
+                    current.getCol()).isEmpty() ||
                             containsPosition(move.getPositions(), current))) {
 
-                Square square = board.getSquare(current.getRow(), current.getCol());
+                Square square = board.getSquare(current.getRow(),
+                        current.getCol());
                 if (!square.isEmpty()) {
                     crossWord.append(square.getTile().getLetter());
                 } else {
@@ -387,9 +367,11 @@ public class ComputerPlayer extends Player {
                 }
 
                 if (isHorizontal) {
-                    current = new Position(current.getRow() + 1, current.getCol());
+                    current = new Position(current.getRow() + 1,
+                            current.getCol());
                 } else {
-                    current = new Position(current.getRow(), current.getCol() + 1);
+                    current = new Position(current.getRow(),
+                            current.getCol() + 1);
                 }
 
                 if (current.getRow() >= 15 || current.getCol() >= 15) {
@@ -405,11 +387,10 @@ public class ComputerPlayer extends Player {
 
         return crossWords;
     }
-    private String findWordInDirection(Board board, Move move, Position pos, boolean horizontal) {
+    private String findWordInDirection(Board board, Move move,
+                                       Position pos, boolean horizontal) {
         StringBuilder word = new StringBuilder();
         Position current = pos;
-
-        // Go backwards
         while (true) {
             Position prev = horizontal ?
                     new Position(current.getRow(), current.getCol() - 1) :
@@ -423,11 +404,7 @@ public class ComputerPlayer extends Player {
             word.insert(0, square.getTile().getLetter());
             current = prev;
         }
-
-        // Add current letter
         word.append(move.getTileAt(pos).getLetter());
-
-        // Go forwards
         current = pos;
         while (true) {
             Position next = horizontal ?
@@ -502,7 +479,8 @@ public class ComputerPlayer extends Player {
     private Tile getTileAtPosition(Move move, Position pos) {
         for (int i = 0; i < move.getPositions().size(); i++) {
             Position movePos = move.getPositions().get(i);
-            if (movePos.getRow() == pos.getRow() && movePos.getCol() == pos.getCol()) {
+            if (movePos.getRow() == pos.getRow() &&
+                    movePos.getCol() == pos.getCol()) {
                 return move.getTiles().get(i);
             }
         }
@@ -520,7 +498,8 @@ public class ComputerPlayer extends Player {
 
     private int getTileValue(char letter) {
         switch (Character.toUpperCase(letter)) {
-            case 'A': case 'E': case 'I': case 'O': case 'U': case 'N': case 'R': case 'S': case 'T': case 'L':
+            case 'A': case 'E': case 'I': case 'O': case 'U': case 'N':
+                case 'R': case 'S': case 'T': case 'L':
                 return 1;
             case 'D': case 'G':
                 return 2;
@@ -540,7 +519,6 @@ public class ComputerPlayer extends Player {
     }
     @Override
     public List<Tile> exchangeTiles(List<Tile> tilesToExchange, TileBag bag) {
-        // If no specific tiles were provided, choose tiles to exchange
         if (tilesToExchange == null || tilesToExchange.isEmpty()) {
             tilesToExchange = selectTilesToExchange();
         }
@@ -551,7 +529,6 @@ public class ComputerPlayer extends Player {
         int vowelCount = 0;
         int consonantCount = 0;
 
-        // Count vowels and consonants
         for (Tile tile : rack.getTiles()) {
             char letter = tile.getLetter();
             if ("AEIOU".indexOf(letter) >= 0) {
@@ -561,9 +538,8 @@ public class ComputerPlayer extends Player {
             }
         }
 
-        // Exchange if rack is very unbalanced
         for (Tile tile : rack.getTiles()) {
-            if (tilesToExchange.size() >= 3) break; // Exchange up to 3 tiles
+            if (tilesToExchange.size() >= 3) break;
             char letter = tile.getLetter();
             if (vowelCount >= 5 && "AEIOU".indexOf(letter) >= 0) {
                 tilesToExchange.add(tile);

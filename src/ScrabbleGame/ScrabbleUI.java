@@ -178,7 +178,8 @@ public class ScrabbleUI extends Application implements ScrabbleGame.GameStateLis
 
             setPrefSize(SQUARE_SIZE, SQUARE_SIZE);
 
-            background = new Rectangle(SQUARE_SIZE - 1, SQUARE_SIZE - 1);
+            background = new Rectangle(SQUARE_SIZE - 1,
+                    SQUARE_SIZE - 1);
             background.setStroke(Color.BLACK);
             background.setStrokeWidth(0.5);
 
@@ -272,7 +273,8 @@ public class ScrabbleUI extends Application implements ScrabbleGame.GameStateLis
             setSpacing(5);
             setPadding(new Insets(10));
             setAlignment(Pos.CENTER);
-            setStyle("-fx-background-color: burlywood; -fx-border-color: brown; -fx-border-width: 2;");
+            setStyle("-fx-background-color: burlywood; " +
+                    "-fx-border-color: brown; -fx-border-width: 2;");
             tileViews = new ArrayList<>();
         }
 
@@ -299,7 +301,8 @@ public class ScrabbleUI extends Application implements ScrabbleGame.GameStateLis
             setPrefSize(SQUARE_SIZE, SQUARE_SIZE);
             setCursor(Cursor.HAND);
 
-            Rectangle background = new Rectangle(SQUARE_SIZE - 2, SQUARE_SIZE - 2);
+            Rectangle background = new Rectangle(SQUARE_SIZE - 2,
+                    SQUARE_SIZE - 2);
             background.setFill(Color.BEIGE);
             background.setStroke(Color.BLACK);
             background.setStrokeWidth(1);
@@ -333,10 +336,12 @@ public class ScrabbleUI extends Application implements ScrabbleGame.GameStateLis
                     SnapshotParameters sp = new SnapshotParameters();
                     sp.setFill(Color.TRANSPARENT);
                     WritableImage snapshot = snapshot(sp, null);
-                    db.setDragView(snapshot, snapshot.getWidth() / 2, snapshot.getHeight() / 2);
+                    db.setDragView(snapshot, snapshot.getWidth() / 2,
+                            snapshot.getHeight() / 2);
 
                     ClipboardContent content = new ClipboardContent();
-                    content.putString(tile.getLetter() + "," + tile.getValue() + "," + tile.isBlank());
+                    content.putString(tile.getLetter() + "," +
+                            tile.getValue() + "," + tile.isBlank());
                     db.setContent(content);
 
                     setOpacity(0.5);
@@ -348,7 +353,7 @@ public class ScrabbleUI extends Application implements ScrabbleGame.GameStateLis
                 isDragging = false;
                 setOpacity(1.0);
                 if (e.getTransferMode() == TransferMode.MOVE) {
-                    hasBeenUsed = true;  // Actualizado para usar el nuevo nombre
+                    hasBeenUsed = true;
                     setVisible(false);
                 }
                 e.consume();
@@ -389,7 +394,8 @@ public class ScrabbleUI extends Application implements ScrabbleGame.GameStateLis
     public void onGameOver() {
         Platform.runLater(() -> {
             updateDisplay();
-            String winner = game.getHumanPlayer().getScore() > game.getComputerPlayer().getScore() ?
+            String winner = game.getHumanPlayer().getScore() >
+                    game.getComputerPlayer().getScore() ?
                     "Human" : "Computer";
             showMessage("Game Over! " + winner + " wins!");
             playButton.setDisable(true);
@@ -407,14 +413,16 @@ public class ScrabbleUI extends Application implements ScrabbleGame.GameStateLis
     }
 
     private void updateScoreLabel() {
-        scoreLabel.setText(String.format("Human: %d  Computer: %d\nTiles Remaining: %d",
+        scoreLabel.setText(String.format("Human: %d  " +
+                        "Computer: %d\nTiles Remaining: %d",
                 game.getHumanPlayer().getScore(),
                 game.getComputerPlayer().getScore(),
                 game.getRemainingTiles()));
     }
 
     private void updateControls() {
-        boolean isHumanTurn = !game.getCurrentPlayer().isComputer() && !game.isGameOver();
+        boolean isHumanTurn = !game.getCurrentPlayer().isComputer() &&
+                !game.isGameOver();
         playButton.setDisable(!isHumanTurn);
         exchangeButton.setDisable(!isHumanTurn || game.getRemainingTiles() < 7);
         passButton.setDisable(!isHumanTurn);
@@ -427,7 +435,8 @@ public class ScrabbleUI extends Application implements ScrabbleGame.GameStateLis
             if (!isValidFirstMove(currentMove)) {
                 showMessage("Invalid first move! Please ensure:\n" +
                         "- At least two letters are played\n" +
-                        "- One letter is on the center square (row 7, column 7)\n" +
+                        "- One letter is on the center square " +
+                        "(row 7, column 7)\n" +
                         "- Letters form a valid word");
                 return;
             }
@@ -487,7 +496,8 @@ public class ScrabbleUI extends Application implements ScrabbleGame.GameStateLis
     }
 
     private void handleExchangeTiles() {
-        List<Tile> selectedTiles = new ArrayList<>(game.getHumanPlayer().getRack().getTiles());
+        List<Tile> selectedTiles =
+                new ArrayList<>(game.getHumanPlayer().getRack().getTiles());
         if (selectedTiles.isEmpty()) {
             showMessage("No tiles to exchange");
             return;
@@ -508,10 +518,12 @@ public class ScrabbleUI extends Application implements ScrabbleGame.GameStateLis
 
     private void handleComputerTurn() {
         if (game.getCurrentPlayer().isComputer() && !game.isGameOver()) {
-            Timeline timeline = new Timeline(new KeyFrame(Duration.seconds(1), event -> {
+            Timeline timeline = new Timeline(
+                    new KeyFrame(Duration.seconds(1), event -> {
                 Move computerMove = game.getComputerMove();
                 if (computerMove != null) {
-                    System.out.println("Computer making move: " + constructWordString(computerMove));
+                    System.out.println("Computer making move: " +
+                            constructWordString(computerMove));
                     if (game.makeMove(computerMove)) {
                         System.out.println("Computer move successful");
                     } else {
@@ -519,9 +531,11 @@ public class ScrabbleUI extends Application implements ScrabbleGame.GameStateLis
                         game.passTurn(); // Pass turn if move fails
                     }
                 } else {
-                    System.out.println("Computer passing turn - no valid moves found");
+                    System.out.println("Computer passing turn - " +
+                            "no valid moves found");
                     game.passTurn();
-                    showMessage("Computer passes turn - no valid moves available");
+                    showMessage("Computer passes turn - " +
+                            "no valid moves available");
                 }
                 updateDisplay();
             }));
@@ -564,7 +578,8 @@ public class ScrabbleUI extends Application implements ScrabbleGame.GameStateLis
         Alert alert = new Alert(Alert.AlertType.INFORMATION);
         alert.setTitle("Game Over");
         alert.setHeaderText(winner + " Wins!");
-        alert.setContentText(String.format("Final Scores:\nHuman: %d\nComputer: %d",
+        alert.setContentText(String.format("Final Scores:\nHuman:" +
+                        " %d\nComputer: %d",
                 game.getHumanPlayer().getScore(),
                 game.getComputerPlayer().getScore()));
         alert.showAndWait();
