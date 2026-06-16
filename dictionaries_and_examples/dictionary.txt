@@ -104482,7 +104482,7 @@ solvency
 solvent
 solvently
 solvents
-solver
+Solver
 solvers
 solves
 solving

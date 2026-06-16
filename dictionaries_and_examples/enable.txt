@@ -142161,7 +142161,7 @@ solvent
 solventless
 solvently
 solvents
-solver
+Solver
 solvers
 solves
 solving

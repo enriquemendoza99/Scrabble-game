@@ -1,358 +1,418 @@
 /**
- * CS 351 Project 3 - Word Solver
  * Implements a Scrabble word finder that determines the highest scoring
  * legal move possible on a given board using available letter tiles.
- * Student name: Enrique Mendoza.
  */
 package Solver;
+
 import java.io.*;
 import java.util.*;
-public class Solver {
-    // Dictionary of valid words
-    private static Set<String> dictionary = new HashSet<>();
-    // Current game board
-    private static String[][] board;
-    // Available letter tiles in the tray
-    private static char[] tray;
-    // Size of the game board
-    private static int boardSize;
-    // Flag to track first move
-    private static boolean firstPass = true;
 
-    /**
-     * Main entry point of the program
-     * @param args command line arguments to read the file
-     */
+/**
+ * Scrabble word solver that finds the highest-scoring legal move on a given
+ * board using the available letter tiles in a tray.
+ * Reads board and tray configurations from an input file and outputs
+ * the best word, its score, and the resulting board state.
+ *
+ * Scoring rules:
+ * - Letter values with premium square multipliers for new tiles only
+ * - Word multipliers (DW/TW) from new tile squares apply to full word
+ * - Cross words formed by new tiles are also scored
+ * - Using all 7 tray tiles awards a 50-point bingo bonus
+ */
+public class Solver {
+    private static Set<String> dictionary = new HashSet<>();
+    private static String[][] board;
+    private static char[] tray;
+    private static int boardSize;
+    private static boolean firstMove = true;
+
     public static void main(String[] args) {
         if (args.length != 1) {
             System.out.println("Usage: java -jar solver.jar <dictionary_file>");
             return;
         }
         loadDictionary(args[0]);
-        // Process input file the contains the board and trays
-        try (BufferedReader reader = new BufferedReader(new FileReader(
-                "example_input.txt"))) {
+        try (BufferedReader reader = new BufferedReader(
+                new FileReader("example_input.txt"))) {
             String line;
             while ((line = reader.readLine()) != null) {
-                // Read board size
+                line = line.trim();
+                if (line.isEmpty()) continue;
                 boardSize = Integer.parseInt(line);
                 board = new String[boardSize][boardSize];
-                // Read board configuration
                 for (int i = 0; i < boardSize; i++) {
                     line = reader.readLine();
-                    for (int j = 0; j < boardSize; j++) {
-                        board[i][j] = line.substring(j * 3, j * 3 + 2);
-                    }
+                    String[] parts = line.trim().split("\\s+");
+                    for (int j = 0; j < boardSize; j++)
+                        board[i][j] = parts[j];
                 }
-                // Read tray configuration
-                tray = reader.readLine().toCharArray();
+                line = reader.readLine();
+                if (line != null) tray = line.trim().toCharArray();
                 solvePuzzle();
-                firstPass = false;
+                firstMove = false;
             }
         } catch (IOException e) {
             e.printStackTrace();
         }
     }
-    /**
-     * Load dictionary words from specified file
-     * @param filename The path to the dictionary file
-     */
+
     private static void loadDictionary(String filename) {
-        try (BufferedReader reader = new BufferedReader(new
-                FileReader(filename))) {
+        try (BufferedReader reader = new BufferedReader(new FileReader(filename))) {
             String word;
-            while ((word = reader.readLine()) != null) {
-                dictionary.add(word.toLowerCase());
-            }
+            while ((word = reader.readLine()) != null)
+                dictionary.add(word.toLowerCase().trim());
         } catch (IOException e) {
             e.printStackTrace();
         }
     }
-    /**
-     * Finds and displays the highest scoring legal move.
-     * Prints the original board, tray, solution word, score and resulting board
-     */
+
     private static void solvePuzzle() {
         System.out.println("Input ScrabbleGame.ScrabbleGame.Board:");
         printBoard();
         System.out.println("Tray: " + new String(tray));
 
-        // Initialize best move tracking variables
-        String bestWord = "";
-        int bestScore = 0;
-        int bestRow = 0;
-        int bestCol = 0;
+        String bestWord       = "";
+        int    bestScore      = -1;
+        int    bestRow        = 0;
+        int    bestCol        = 0;
         boolean bestHorizontal = true;
+        int[]   bestTilesUsed = new int[]{0};
 
-        // Try possible board positions
         for (int i = 0; i < boardSize; i++) {
             for (int j = 0; j < boardSize; j++) {
-                // Try horizontal placements
-                List<String> words = findPossibleWords(i, j, true);
-                for (String word : words) {
-                    int score = calculateScore(word, i, j, true);
-                    if (score > bestScore || (score == bestScore &&
-                            word.compareTo(bestWord) < 0)) {
-                        if (isValidPlacement(word, i, j, true)) {
-                            bestScore = score;
-                            bestWord = word;
-                            bestRow = i;
-                            bestCol = j;
-                            bestHorizontal = true;
-                        }
-                    }
-                }
-                // Try vertical placements
-                words = findPossibleWords(i, j, false);
-                for (String word : words) {
-                    int score = calculateScore(word, i, j, false);
-                    if (score > bestScore || (score == bestScore &&
-                            word.compareTo(bestWord) < 0)) {
-                        if (isValidPlacement(word, i, j, false)) {
-                            bestScore = score;
-                            bestWord = word;
-                            bestRow = i;
-                            bestCol = j;
-                            bestHorizontal = false;
+                for (boolean horiz : new boolean[]{true, false}) {
+                    for (String word : dictionary) {
+                        if (word.length() < 2) continue;
+                        int maxLen = horiz ? boardSize - j : boardSize - i;
+                        if (word.length() > maxLen) continue;
+
+                        int[] tilesFromTray = new int[1];
+                        if (!canPlaceWord(word, i, j, horiz, tilesFromTray)) continue;
+                        if (!isConnected(word, i, j, horiz)) continue;
+                        if (!allWordsValid(word, i, j, horiz)) continue;
+
+                        int score = calculateFullScore(word, i, j, horiz,
+                                tilesFromTray[0]);
+
+                        if (score > bestScore ||
+                                (score == bestScore &&
+                                        word.compareTo(bestWord) < 0)) {
+                            bestScore      = score;
+                            bestWord       = word;
+                            bestRow        = i;
+                            bestCol        = j;
+                            bestHorizontal = horiz;
+                            bestTilesUsed[0] = tilesFromTray[0];
                         }
                     }
                 }
             }
         }
-        // Display solution
-        String displayWord = formatWordWithBlanks(bestWord);
-        System.out.println("Solution " + displayWord + " has " + bestScore +
-                " points");
-        System.out.println("Solution ScrabbleGame.ScrabbleGame.Board:");
-        placeWord(displayWord, bestRow, bestCol, bestHorizontal);
-        printBoard();
+
+        if (bestWord.isEmpty()) {
+            System.out.println("No valid move found.");
+        } else {
+            String display = formatWithBlanks(bestWord, bestRow, bestCol,
+                    bestHorizontal);
+            System.out.println("Solution " + display + " has " +
+                    bestScore + " points");
+            System.out.println("Solution ScrabbleGame.ScrabbleGame.Board:");
+            placeWord(display, bestRow, bestCol, bestHorizontal);
+            printBoard();
+        }
         System.out.println();
     }
-    /**
-     * Finds all possible words that can be placed at given position
-     * @param row Starting row position
-     * @param col Starting column position
-     * @param horizontal true for horizontal placement, false for vetical
-     * @return list of possible words that can be placed
-     */
-    private static List<String> findPossibleWords(int row, int col,
-                                                  boolean horizontal) {
-        List<String> words = new ArrayList<>();
-        if (!isValidStart(row, col)) return words;
-
-        String prefix = getPrefix(row, col, horizontal);
-        String suffix = getSuffix(row, col, horizontal);
-        int maxLength = horizontal ? boardSize - col : boardSize - row;
-        // Check dictionary for matching words
-        for (String word : dictionary) {
-            if (word.length() <= maxLength && word.startsWith(prefix) &&
-                    word.endsWith(suffix)) {
-                if (canFormWord(word)) {
-                    words.add(word);
-                }
-            }
-        }
-        return words;
-    }
-    /**
-     * Checks if a position is valid for starting a word
-     * @param row  Position to check
-     * @param col Position to check
-     * @return true if position is valid start position
-     */
-    private static boolean isValidStart(int row, int col) {
-        return true;
-    }
 
     /**
-     * Gets existing letter befor the starting position
-     * @param row Staring row
-     * @param col Staring column
-     * @param horizontal true for horizontal direction
-     * @return String of prefix letter
+     * Checks if a word can be placed at (row,col) in the given direction.
+     * Returns true if:
+     * - Every square is either empty or already has the correct letter
+     * - At least one new tile is placed from the tray
+     * tilesFromTray[0] is set to the number of tray tiles used.
      */
-    private static String getPrefix(int row, int col, boolean horizontal) {
-        StringBuilder prefix = new StringBuilder();
-        int pos = horizontal ? col - 1 : row - 1;
-        while (pos >= 0) {
-            String cell = horizontal ? board[row][pos] : board[pos][col];
-            if (!Character.isLetter(cell.charAt(0))) break;
-            prefix.insert(0, cell.charAt(0));
-            pos--;
-        }
-        return prefix.toString();
-    }
-
-    /**
-     * Gets existing letter after the starting position
-     * @param row Starting row
-     * @param col Starting column
-     * @param horizontal true for horizontal direction
-     * @return String of suffix letters
-     */
-    private static String getSuffix(int row, int col, boolean horizontal) {
-        StringBuilder suffix = new StringBuilder();
-        int pos = horizontal ? col : row;
-        int max = horizontal ? boardSize : boardSize;
-        while (pos < max) {
-            String cell = horizontal ? board[row][pos] : board[pos][col];
-            if (Character.isLetter(cell.charAt(0))) {
-                suffix.append(cell.charAt(0));
-            } else if (!cell.equals("..")) {
-                break;
-            }
-            pos++;
-        }
-        return suffix.toString();
-    }
-
-    /**
-     * Checks if a word can be formed using available tiles
-     * @param word the word to check
-     * @return true if word can be formed
-     */
-    private static boolean canFormWord(String word) {
-        int[] available = new int[26];
+    private static boolean canPlaceWord(String word, int row, int col,
+                                        boolean horizontal, int[] tilesFromTray) {
+        int[] avail = new int[26];
         int blanks = 0;
-        // Count available letters and blanks
         for (char c : tray) {
             if (c == '*') blanks++;
-            else available[c - 'a']++;
+            else avail[Character.toLowerCase(c) - 'a']++;
         }
-        // Check if word can be formed
-        for (char c : word.toCharArray()) {
-            int idx = Character.toLowerCase(c) - 'a';
-            if (available[idx] > 0) {
-                available[idx]--;
-            } else if (blanks > 0) {
-                blanks--;
+
+        int newTiles = 0;
+        for (int i = 0; i < word.length(); i++) {
+            int r = horizontal ? row : row + i;
+            int c2 = horizontal ? col + i : col;
+            if (r >= boardSize || c2 >= boardSize) return false;
+
+            String sq = board[r][c2];
+            char existing = getLetterAt(sq);
+
+            if (existing != 0) {
+                // Existing tile must match
+                if (Character.toLowerCase(existing) !=
+                        Character.toLowerCase(word.charAt(i)))
+                    return false;
             } else {
-                return false;
+                // Need a tile from tray
+                int idx = Character.toLowerCase(word.charAt(i)) - 'a';
+                if (avail[idx] > 0) avail[idx]--;
+                else if (blanks > 0) blanks--;
+                else return false;
+                newTiles++;
             }
         }
-        return true;
+        tilesFromTray[0] = newTiles;
+        return newTiles > 0;
     }
+
     /**
-     * Calculates score for a word placement
-     * @param word the word to score
-     * @param row Starting row
-     * @param col Starting column
-     * @param horizontal true for horizontal placement
-     * @return total score for the words
+     * Checks connectivity:
+     * - First move must cover the center square
+     * - Subsequent moves must touch at least one existing tile
      */
-    private static int calculateScore(String word, int row, int col,
-                                      boolean horizontal) {
-        int score = 0;
-        int wordMultiplier = 1;
+    private static boolean isConnected(String word, int row, int col,
+                                       boolean horizontal) {
+        int center = boardSize / 2;
+        if (isFirstMove()) {
+            for (int i = 0; i < word.length(); i++) {
+                int r = horizontal ? row : row + i;
+                int c = horizontal ? col + i : col;
+                if (r == center && c == center) return true;
+            }
+            return false;
+        }
         for (int i = 0; i < word.length(); i++) {
             int r = horizontal ? row : row + i;
             int c = horizontal ? col + i : col;
-
-            if (!Character.isLetter(board[r][c].charAt(0))) {
-                int letterScore = getLetterScore(word.charAt(i));
-                int letterMultiplier = 1;
-                char bonus = board[r][c].charAt(1);
-                // Apply premium square multipliers
-                if (bonus == '2') letterMultiplier = 2;
-                else if (bonus == '3') letterMultiplier = 3;
-                else if (bonus == 'd') wordMultiplier *= 2;
-                else if (bonus == 't') wordMultiplier *= 3;
-                score += letterScore * letterMultiplier;
-            } else {
-                score += getLetterScore(word.charAt(i));
+            if (getLetterAt(board[r][c]) != 0) return true; // uses existing
+            // Check adjacency
+            int[][] dirs = {{-1,0},{1,0},{0,-1},{0,1}};
+            for (int[] d : dirs) {
+                int nr = r + d[0], nc = c + d[1];
+                if (nr >= 0 && nr < boardSize && nc >= 0 && nc < boardSize
+                        && getLetterAt(board[nr][nc]) != 0)
+                    return true;
             }
         }
-        return score * wordMultiplier;
+        return false;
     }
+
+    private static boolean isFirstMove() {
+        for (String[] row : board)
+            for (String sq : row)
+                if (getLetterAt(sq) != 0) return false;
+        return true;
+    }
+
     /**
-     * Gets the score value for a letter
-     * @param c letter to score
-     * @return score value of the letter
+     * Validates all words formed by the placement against the dictionary.
      */
-    private static int getLetterScore(char c) {
-        switch (Character.toLowerCase(c)) {
+    private static boolean allWordsValid(String word, int row, int col,
+                                         boolean horizontal) {
+        // Check main word
+        if (!dictionary.contains(word.toLowerCase())) return false;
+
+        // Check cross words
+        for (int i = 0; i < word.length(); i++) {
+            int r = horizontal ? row : row + i;
+            int c = horizontal ? col + i : col;
+            if (getLetterAt(board[r][c]) != 0) continue; // existing tile, skip
+
+            String cross = extractCrossWord(word.charAt(i), r, c, !horizontal,
+                    word, row, col, horizontal);
+            if (cross != null && cross.length() > 1 &&
+                    !dictionary.contains(cross.toLowerCase()))
+                return false;
+        }
+        return true;
+    }
+
+    /**
+     * Extracts the cross word through position (r,c) in the perpendicular direction.
+     */
+    private static String extractCrossWord(char newLetter, int r, int c,
+                                           boolean crossHoriz,
+                                           String word, int wordRow, int wordCol,
+                                           boolean wordHoriz) {
+        StringBuilder sb = new StringBuilder();
+        // Go backward
+        int pr = crossHoriz ? r : r - 1;
+        int pc = crossHoriz ? c - 1 : c;
+        while (pr >= 0 && pc >= 0 && getLetterAt(board[pr][pc]) != 0) {
+            sb.insert(0, Character.toLowerCase(getLetterAt(board[pr][pc])));
+            if (crossHoriz) pc--; else pr--;
+        }
+        sb.append(Character.toLowerCase(newLetter));
+        // Go forward
+        int nr = crossHoriz ? r : r + 1;
+        int nc = crossHoriz ? c + 1 : c;
+        while (nr < boardSize && nc < boardSize && getLetterAt(board[nr][nc]) != 0) {
+            sb.append(Character.toLowerCase(getLetterAt(board[nr][nc])));
+            if (crossHoriz) nc++; else nr++;
+        }
+        return sb.length() > 1 ? sb.toString() : null;
+    }
+
+    /**
+     * Calculates the full score for a word placement including:
+     * - Main word score with letter/word multipliers
+     * - Cross word scores
+     * - 50-point bingo bonus for using all 7 tray tiles
+     */
+    private static int calculateFullScore(String word, int row, int col,
+                                          boolean horizontal, int tilesFromTray) {
+        int mainScore = 0;
+        int mainWM    = 1;
+
+        for (int i = 0; i < word.length(); i++) {
+            int r  = horizontal ? row : row + i;
+            int c  = horizontal ? col + i : col;
+            String sq = board[r][c];
+            char existing = getLetterAt(sq);
+
+            int val = getLetterValue(word.charAt(i));
+
+            if (existing != 0) {
+                // Existing tile — no premium
+                mainScore += val;
+            } else {
+                // New tile — apply premium
+                String prem = sq;
+                if      (prem.equals(".2")) val *= 2;
+                else if (prem.equals(".3")) val *= 3;
+                else if (prem.equals("2.")) mainWM *= 2;
+                else if (prem.equals("3.")) mainWM *= 3;
+                else if (prem.equals("4.")) mainWM *= 4;
+                else if (prem.equals(".4")) val *= 4;
+                mainScore += val;
+            }
+        }
+        mainScore *= mainWM;
+
+        // Cross words
+        int crossScore = 0;
+        for (int i = 0; i < word.length(); i++) {
+            int r  = horizontal ? row : row + i;
+            int c  = horizontal ? col + i : col;
+            if (getLetterAt(board[r][c]) != 0) continue; // existing, skip
+
+            String cross = extractCrossWord(word.charAt(i), r, c,
+                    !horizontal, word, row, col, horizontal);
+            if (cross == null || cross.length() < 2) continue;
+
+// Score this cross word — premium applies only to the new tile
+            int cScore = 0, cWM = 1;
+            String sq2 = board[r][c];
+            int newVal = getLetterValue(word.charAt(i));
+            if      (sq2.equals(".2")) newVal *= 2;
+            else if (sq2.equals(".3")) newVal *= 3;
+            else if (sq2.equals("2.")) cWM    *= 2;
+            else if (sq2.equals("3.")) cWM    *= 3;
+            else if (sq2.equals("4.")) cWM    *= 4;
+            else if (sq2.equals(".4")) newVal *= 4;
+            cScore += newVal;
+
+// Add existing tiles going backward
+            int pr2 = !horizontal ? r : r - 1;
+            int pc2 = !horizontal ? c - 1 : c;
+            while (pr2 >= 0 && pc2 >= 0 && getLetterAt(board[pr2][pc2]) != 0) {
+                cScore += getLetterValue(getLetterAt(board[pr2][pc2]));
+                if (!horizontal) pc2--; else pr2--;
+            }
+// Add existing tiles going forward
+            int nr2 = !horizontal ? r : r + 1;
+            int nc2 = !horizontal ? c + 1 : c;
+            while (nr2 < boardSize && nc2 < boardSize
+                    && getLetterAt(board[nr2][nc2]) != 0) {
+                cScore += getLetterValue(getLetterAt(board[nr2][nc2]));
+                if (!horizontal) nc2++; else nr2++;
+            }
+            crossScore += cScore * cWM;
+        }
+
+        // Bingo bonus
+        int bingo = (tilesFromTray == 7) ? 50 : 0;
+
+        return mainScore + crossScore + bingo;
+    }
+
+    private static char getLetterAt(String sq) {
+        if (sq == null || sq.isEmpty()) return 0;
+        // Single char — must be a letter from parsed board
+        if (sq.length() == 1) {
+            return Character.isLetter(sq.charAt(0)) ? sq.charAt(0) : 0;
+        }
+        // Two chars — check both positions
+        char c0 = sq.charAt(0);
+        char c1 = sq.charAt(1);
+        if (Character.isLetter(c0)) return c0;
+        if (Character.isLetter(c1)) return c1;
+        return 0;
+    }
+
+    private static int getLetterValue(char c) {
+        if (Character.isUpperCase(c)) return 0;
+        switch (c) {
             case 'a': case 'e': case 'i': case 'l': case 'n':
-            case 'o': case 'r': case 's': case 't': case 'u':
-                return 1;
-            case 'd': case 'g':
-                return 2;
-            case 'b': case 'c': case 'm': case 'p':
-                return 3;
-            case 'f': case 'h': case 'v': case 'w': case 'y':
-                return 4;
-            case 'k':
-                return 5;
-            case 'j': case 'x':
-                return 8;
-            case 'q': case 'z':
-                return 10;
-            default:
-                return 0;
+            case 'o': case 'r': case 's': case 't': case 'u': return 1;
+            case 'd': case 'g': return 2;
+            case 'b': case 'c': case 'm': case 'p': return 3;
+            case 'f': case 'h': case 'v': case 'w': case 'y': return 4;
+            case 'k': return 5;
+            case 'j': case 'x': return 8;
+            case 'q': case 'z': return 10;
+            default: return 0;
         }
     }
-    /**
-     * Formats a word with uppercase letter for blank tiles
-     * @param word Word to format
-     * @return Formatted word with uppercase letter for blanks
-     */
-    private static String formatWordWithBlanks(String word) {
-        int[] available = new int[26];
+
+    private static String formatWithBlanks(String word, int row, int col,
+                                           boolean horizontal) {
+        int[] avail = new int[26];
         int blanks = 0;
         for (char c : tray) {
             if (c == '*') blanks++;
-            else available[c - 'a']++;
+            else avail[Character.toLowerCase(c) - 'a']++;
         }
-        StringBuilder result = new StringBuilder(word);
+        StringBuilder result = new StringBuilder();
         for (int i = 0; i < word.length(); i++) {
+            int r  = horizontal ? row : row + i;
+            int c2 = horizontal ? col + i : col;
+            if (getLetterAt(board[r][c2]) != 0) {
+                result.append(word.charAt(i));
+                continue;
+            }
             int idx = Character.toLowerCase(word.charAt(i)) - 'a';
-            if (available[idx] > 0) {
-                available[idx]--;
-            } else if (blanks > 0) {
-                result.setCharAt(i, Character.toUpperCase(word.charAt(i)));
+            if (avail[idx] > 0) {
+                avail[idx]--;
+                result.append(Character.toLowerCase(word.charAt(i)));
+            } else {
                 blanks--;
+                // Uppercase = blank tile used for this letter
+                result.append(Character.toUpperCase(word.charAt(i)));
             }
         }
         return result.toString();
     }
-    /**
-     * Validates if a word placement is legal
-     * @param word Word to place
-     * @param row Starting row
-     * @param col Starting column
-     * @param horizontal true for horizontal placement
-     * @return true if placement is valid
-     */
-    private static boolean isValidPlacement(String word, int row, int col,
-                                            boolean horizontal) {
-        return true;
-    }
-    /**
-     * Places a word on the board
-     * @param word the word to place
-     * @param row starting row
-     * @param col starting column
-     * @param horizontal true for horizontal placement
-     */
+
     private static void placeWord(String word, int row, int col,
                                   boolean horizontal) {
         for (int i = 0; i < word.length(); i++) {
-            int r = horizontal ? row : row + i;
-            int c = horizontal ? col + i : col;
-            if (!Character.isLetter(board[r][c].charAt(0))) {
-                board[r][c] = word.charAt(i) + ".";
-            }
+            int r  = horizontal ? row : row + i;
+            int c2 = horizontal ? col + i : col;
+            if (getLetterAt(board[r][c2]) == 0)
+                board[r][c2] = String.valueOf(word.charAt(i));
         }
     }
-    /**
-     * Print the current board
-     */
+
     private static void printBoard() {
         for (int i = 0; i < boardSize; i++) {
+            StringBuilder line = new StringBuilder();
             for (int j = 0; j < boardSize; j++) {
-                System.out.print(board[i][j]);
-                if (j < boardSize - 1) System.out.print(" ");
+                if (j > 0) line.append(" ");
+                line.append(board[i][j]);
             }
-            System.out.println();
+            System.out.println(line);
         }
     }
 }
